@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v12</title>
+<title>Able Coverage Planner v12.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -558,7 +558,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v12</span></div>
+        <div class="title">Coverage Planner <span class="version">v12.1</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -716,6 +716,31 @@ async function drivingTable(sourceE,sourceN,points){
 function insertCandidate(list,item,max=5){
   let pos=list.findIndex(x=>item.d2<x.d2);if(pos<0)list.push(item);else list.splice(pos,0,item);if(list.length>max)list.pop();
 }
+function sampleHash(i){
+  let x=(Number(i)+1)>>>0;
+  x^=x>>>16;x=Math.imul(x,0x7feb352d);x^=x>>>15;x=Math.imul(x,0x846ca68b);x^=x>>>16;
+  return x>>>0;
+}
+function addDistrictSample(s,item){
+  if(!s.nearest)s.nearest=[];
+  if(!s.spread)s.spread=[];
+  insertCandidate(s.nearest,item,5);
+  let entry={...item,h:sampleHash(item.idx)};
+  let pos=s.spread.findIndex(x=>entry.h<x.h);
+  if(pos<0)s.spread.push(entry);else s.spread.splice(pos,0,entry);
+  if(s.spread.length>20)s.spread.pop();
+}
+function representativeSamples(s,limit=25){
+  if(!s)return[];
+  let out=[],seen=new Set();
+  for(let x of [...(s.nearest||[]),...(s.spread||[])]){
+    if(seen.has(x.idx))continue;
+    seen.add(x.idx);out.push(x);
+    if(out.length>=limit)break;
+  }
+  return out;
+}
+const NON_GEOGRAPHIC_OUTCODES=new Set(['SS99']);
 function resolvePostcodesForIndices(indices){
   let need=new Set(indices.filter(Number.isInteger)),found=new Map();if(!need.size)return found;
   for(let [pc,idx] of dataset.pcMap){if(need.has(idx)){found.set(idx,displayPC(pc));need.delete(idx);if(!need.size)break}}
@@ -742,28 +767,69 @@ async function searchCoverage(){
 if(!dataset)return;let pc=normalisePC($('postcode').value),radius=+$('radius').value,idx=dataset.pcMap.get(pc);if(idx===undefined){$('searchStatus').className='status err';$('searchStatus').textContent=`${displayPC(pc)} was not found in the loaded data.`;$('results').classList.add('hidden');return}
 let ce=dataset.e[idx],cn=dataset.n[idx],rm=radius*1609.344,r2=rm*rm,nearest=new Float64Array(dataset.outcodes.length);nearest.fill(Infinity);let counts=new Uint32Array(dataset.outcodes.length),sampleE=new Int32Array(dataset.outcodes.length),sampleN=new Int32Array(dataset.outcodes.length),insidePoints=0;
 let multi=coverageMode==='driving'?new Map():null;
-for(let i=0;i<dataset.e.length;i++){let dx=dataset.e[i]-ce;if(dx>rm||dx<-rm)continue;let dy=dataset.n[i]-cn;if(dy>rm||dy<-rm)continue;let d2=dx*dx+dy*dy;if(d2<=r2){insidePoints++;let id=dataset.o[i];counts[id]++;if(d2<nearest[id]){nearest[id]=d2;sampleE[id]=dataset.e[i];sampleN[id]=dataset.n[i]}if(multi){let list=multi.get(id);if(!list){list=[];multi.set(id,list)}insertCandidate(list,{e:dataset.e[i],n:dataset.n[i],d2,idx:i},5)}}}
-let candidates=[];for(let id=0;id<nearest.length;id++)if(nearest[id]<Infinity)candidates.push({id,code:dataset.outcodes[id],d:Math.sqrt(nearest[id])/1609.344,count:counts[id],e:sampleE[id],n:sampleN[id],samples:multi?multi.get(id)||[]:null});candidates.sort((a,b)=>a.d-b.d||a.code.localeCompare(b.code));
+for(let i=0;i<dataset.e.length;i++){let dx=dataset.e[i]-ce;if(dx>rm||dx<-rm)continue;let dy=dataset.n[i]-cn;if(dy>rm||dy<-rm)continue;let d2=dx*dx+dy*dy;if(d2<=r2){insidePoints++;let id=dataset.o[i];counts[id]++;if(d2<nearest[id]){nearest[id]=d2;sampleE[id]=dataset.e[i];sampleN[id]=dataset.n[i]}if(multi){let sampler=multi.get(id);if(!sampler){sampler={nearest:[],spread:[]};multi.set(id,sampler)}addDistrictSample(sampler,{e:dataset.e[i],n:dataset.n[i],d2,idx:i})}}}
+let candidates=[];for(let id=0;id<nearest.length;id++)if(nearest[id]<Infinity){let code=dataset.outcodes[id];if(coverageMode==='driving'&&NON_GEOGRAPHIC_OUTCODES.has(code))continue;candidates.push({id,code,d:Math.sqrt(nearest[id])/1609.344,count:counts[id],e:sampleE[id],n:sampleN[id],samples:multi?representativeSamples(multi.get(id),25):null})}candidates.sort((a,b)=>a.d-b.d||a.code.localeCompare(b.code));
 if(coverageMode==='straight'){
   results=candidates;$('searchStatus').className='status ok';$('searchStatus').textContent=`Found ${results.length.toLocaleString()} outward codes from ${insidePoints.toLocaleString()} postcode points within ${radius} straight-line miles of ${displayPC(pc)}.`;$('pointsCount').textContent=insidePoints.toLocaleString();$('pointsLabel').textContent='postcode points inside radius';$('distanceLabel').textContent='straight-line miles';$('distanceHead').textContent='Nearest qualifying point';$('countHead').textContent='Postcode points in radius';$('plotNote').textContent='Offline coverage plot. Circle = selected straight-line radius; dots = nearest qualifying point for each outward code.';
 }else{
   if(radius>50){$('searchStatus').className='status warn';$('searchStatus').textContent='Driving mode is currently limited to 50 miles to keep live routing requests manageable. Choose 50 miles or less.';$('results').classList.add('hidden');return}
-  $('go').disabled=true;$('searchStatus').className='status';$('searchStatus').textContent=`Road-checking up to 5 postcode points in each of ${candidates.length.toLocaleString()} candidate outward codes…`;
-  let routed=[],failed=0,testedPoints=0;
+  $('go').disabled=true;$('searchStatus').className='status';$('searchStatus').textContent=`Road-checking representative postcode points in each of ${candidates.length.toLocaleString()} candidate outward codes…`;
+  let routed=[],failed=0,testedPoints=0,deepChecked=0;
   for(let ci=0;ci<candidates.length;ci++){
-    let c=candidates[ci],samples=c.samples||[];let best=null,success=0;
-    // Route the closest postcode points together. The minimum actual road distance wins for the district.
-    for(let j=0;j<samples.length;j+=20){let batch=samples.slice(j,j+20);try{let routes=await drivingTable(ce,cn,batch);for(let k=0;k<batch.length;k++){let q=routes[k];testedPoints++;if(q&&q.miles!=null){success++;let cand={...batch[k],driveMiles:q.miles,driveMinutes:q.minutes};if(!best||cand.driveMiles<best.driveMiles)best=cand}}}catch(e){for(let k=0;k<batch.length;k++){testedPoints++;try{let q=await drivingRoute(ce,cn,batch[k].e,batch[k].n);success++;let cand={...batch[k],driveMiles:q.miles,driveMinutes:q.minutes};if(!best||cand.driveMiles<best.driveMiles)best=cand}catch(err){failed++}if(k<batch.length-1)await new Promise(r=>setTimeout(r,120))}}}
-    if(best){routed.push({...c,e:best.e,n:best.n,pointIdx:best.idx,driveMiles:best.driveMiles,driveMinutes:best.driveMinutes,pointsTested:samples.length,routeSuccesses:success,confidence:Math.abs(best.driveMiles-radius)<=2?'edge':'good'})}else failed++;
-    if(ci%5===4||ci===candidates.length-1){$('searchStatus').textContent=`Checking driving distance… ${ci+1} of ${candidates.length} outward codes · ${testedPoints} postcode points road-checked`;await new Promise(r=>setTimeout(r,250))}
+    let c=candidates[ci],allSamples=c.samples||[],firstSamples=allSamples.slice(0,10),best=null,success=0,testedHere=0;
+    async function routeSamples(batch){
+      if(!batch.length)return;
+      for(let j=0;j<batch.length;j+=20){
+        let part=batch.slice(j,j+20);
+        try{
+          let routes=await drivingTable(ce,cn,part);
+          for(let k=0;k<part.length;k++){
+            let q=routes[k];testedPoints++;testedHere++;
+            if(q&&q.miles!=null){
+              success++;
+              let cand={...part[k],driveMiles:q.miles,driveMinutes:q.minutes};
+              if(!best||cand.driveMiles<best.driveMiles)best=cand;
+            }
+          }
+        }catch(e){
+          for(let k=0;k<part.length;k++){
+            testedPoints++;testedHere++;
+            try{
+              let q=await drivingRoute(ce,cn,part[k].e,part[k].n);
+              success++;
+              let cand={...part[k],driveMiles:q.miles,driveMinutes:q.minutes};
+              if(!best||cand.driveMiles<best.driveMiles)best=cand;
+            }catch(err){failed++}
+            if(k<part.length-1)await new Promise(r=>setTimeout(r,120));
+          }
+        }
+      }
+    }
+    await routeSamples(firstSamples);
+    let firstBest=best?best.driveMiles:Infinity;
+    let topologyRisk=c.d<=radius*0.75;
+    let nearBoundary=Number.isFinite(firstBest)&&firstBest<=radius+5&&firstBest>=radius-4;
+    let justOutside=Number.isFinite(firstBest)&&firstBest>radius&&firstBest<=radius+5;
+    let needsDeep=(nearBoundary||justOutside||topologyRisk)&&allSamples.length>firstSamples.length;
+    if(needsDeep){
+      deepChecked++;
+      await routeSamples(allSamples.slice(firstSamples.length,25));
+    }
+    if(best){
+      routed.push({...c,e:best.e,n:best.n,pointIdx:best.idx,driveMiles:best.driveMiles,driveMinutes:best.driveMinutes,pointsTested:testedHere,routeSuccesses:success,deepChecked:needsDeep,confidence:Math.abs(best.driveMiles-radius)<=2?'edge':'good'});
+    }else failed++;
+    if(ci%5===4||ci===candidates.length-1){
+      $('searchStatus').textContent=`Checking driving distance… ${ci+1} of ${candidates.length} outward codes · ${testedPoints} postcode points road-checked`;
+      await new Promise(r=>setTimeout(r,250));
+    }
   }
   results=routed.filter(r=>r.driveMiles<=radius).sort((a,b)=>a.driveMiles-b.driveMiles||a.code.localeCompare(b.code));
   let pcNames=resolvePostcodesForIndices(results.map(r=>r.pointIdx));for(let r of results)r.qualifyingPostcode=pcNames.get(r.pointIdx)||'postcode point';
-  $('searchStatus').className='status '+(failed?'warn':'ok');$('searchStatus').textContent=`Found ${results.length.toLocaleString()} outward codes within ${radius} driving miles of ${displayPC(pc)} after road-checking ${testedPoints.toLocaleString()} postcode points.${failed?` ${failed} route request${failed===1?'':'s'} could not be returned.`:''}`;$('pointsCount').textContent=testedPoints.toLocaleString();$('pointsLabel').textContent='postcode points road-checked';$('distanceLabel').textContent='driving-mile limit';$('distanceHead').textContent='Best tested driving route';$('countHead').textContent='Why it qualified';$('plotNote').textContent='The map is a geographic reference. Driving mode still tests up to five nearby postcode points per outward code and uses the shortest returned road route.';$('go').disabled=false;
+  $('searchStatus').className='status '+(failed?'warn':'ok');$('searchStatus').textContent=`Found ${results.length.toLocaleString()} outward codes within ${radius} driving miles of ${displayPC(pc)} after road-checking ${testedPoints.toLocaleString()} representative postcode points. ${deepChecked} district${deepChecked===1?'':'s'} received a deeper 25-point check.${failed?` ${failed} route request${failed===1?'':'s'} could not be returned.`:''}`;$('pointsCount').textContent=testedPoints.toLocaleString();$('pointsLabel').textContent='postcode points road-checked';$('distanceLabel').textContent='driving-mile limit';$('distanceHead').textContent='Best tested driving route';$('countHead').textContent='Why it qualified';$('plotNote').textContent='The map is a geographic reference. Driving mode tests a representative spread of postcode points per outward code and performs a deeper check for borderline or awkward-geography districts.';$('go').disabled=false;
 }
 $('results').classList.remove('hidden');$('count').textContent=results.length.toLocaleString();$('miles').textContent=radius;$('centre').textContent=displayPC(pc);renderGroups(outcodeFromCompact(pc));renderRows();renderPlot(ce,cn,rm,outcodeFromCompact(pc))}
 function renderGroups(start){let g={};for(let r of results){let area=(r.code.match(/^[A-Z]+/)||['?'])[0];(g[area]??=[]).push(r.code)}$('groups').innerHTML=Object.keys(g).sort().map(a=>`<div class="group"><h3>${a} area · ${g[a].length} outward code${g[a].length===1?'':'s'}</h3><div class="codes">${g[a].map(c=>`<span class="code ${c===start?'start':''}">${c}</span>`).join('')}</div></div>`).join('')}
-function renderRows(){$('rows').innerHTML=results.map(r=>coverageMode==='driving'?`<tr><td><b>${r.code}</b><span class="confidence ${r.confidence==='edge'?'edge':'good'}">${r.confidence==='edge'?'EDGE CASE':'CONFIRMED'}</span></td><td><b>${r.driveMiles.toFixed(2)} mi</b> <span class="muted">(${r.d.toFixed(2)} mi nearest straight)</span><div class="routeMeta">about ${r.driveMinutes==null?'—':Math.round(r.driveMinutes)+' min'} driving</div></td><td><b>${r.qualifyingPostcode||'postcode point'}</b><div class="qualify">shortest of ${r.routeSuccesses||0}/${r.pointsTested||0} tested road routes</div></td></tr>`:`<tr><td><b>${r.code}</b></td><td>${r.d.toFixed(2)} mi</td><td>${r.count.toLocaleString()}</td></tr>`).join('')}
+function renderRows(){$('rows').innerHTML=results.map(r=>coverageMode==='driving'?`<tr><td><b>${r.code}</b><span class="confidence ${r.confidence==='edge'?'edge':'good'}">${r.confidence==='edge'?'EDGE CASE':'CONFIRMED'}</span></td><td><b>${r.driveMiles.toFixed(2)} mi</b> <span class="muted">(${r.d.toFixed(2)} mi nearest straight)</span><div class="routeMeta">about ${r.driveMinutes==null?'—':Math.round(r.driveMinutes)+' min'} driving</div></td><td><b>${r.qualifyingPostcode||'postcode point'}</b><div class="qualify">shortest of ${r.routeSuccesses||0}/${r.pointsTested||0} tested road routes${r.deepChecked?' · deeper check':''}</div></td></tr>`:`<tr><td><b>${r.code}</b></td><td>${r.d.toFixed(2)} mi</td><td>${r.count.toLocaleString()}</td></tr>`).join('')}
 
 
 function mapZoomForMiles(miles){
@@ -847,7 +913,7 @@ function renderPlot(ce,cn,rm,start){
       let confirmed=results.length-edgeCount;
       $('coverageValidation').className='validationStrip'+(edgeCount?' edge':'');
       $('validationTitle').textContent=edgeCount?'Driving results include edge cases':'Driving results confirmed';
-      $('validationText').textContent=confirmed+' confirmed outward code'+(confirmed===1?'':'s')+(edgeCount?' · '+edgeCount+' within 2 miles of the selected limit and worth checking manually.':'')+' Each district was road-tested using up to five nearby postcode points.';
+      $('validationText').textContent=confirmed+' confirmed outward code'+(confirmed===1?'':'s')+(edgeCount?' · '+edgeCount+' within 2 miles of the selected limit and worth checking manually.':'')+' Each district was road-tested using up to 10 representative postcode points, with up to 25 tested for borderline or awkward-geography cases.';
       $('validationBadge').textContent=edgeCount?edgeCount+' EDGE':'CONFIRMED';
     }else{
       $('coverageValidation').className='validationStrip';
@@ -891,7 +957,7 @@ function renderJobPlot(je,jn,checked,pc){
   }
 }
 
-$('coverageStraight').onclick=()=>{coverageMode='straight';$('coverageStraight').classList.add('active');$('coverageDriving').classList.remove('active');$('coverageModeNote').innerHTML='<b>Straight-line:</b> exact against every loaded postcode point. If any postcode in an outward code is inside the circle, that outward code is included.';$('results').classList.add('hidden')};$('coverageDriving').onclick=()=>{coverageMode='driving';$('coverageDriving').classList.add('active');$('coverageStraight').classList.remove('active');$('coverageModeNote').innerHTML='<b>Driving distance:</b> the app pre-filters by straight-line distance, then road-checks up to <b>five nearby postcode points per outward code</b>. The shortest real road route is used. Results within 2 miles of your limit are marked as edge cases. Internet is required.';$('results').classList.add('hidden')};$('go').onclick=searchCoverage;$('postcode').addEventListener('keydown',e=>{if(e.key==='Enter')searchCoverage()});$('copy').onclick=async()=>{let t=results.map(r=>r.code).join(', ');try{await navigator.clipboard.writeText(t);$('searchStatus').textContent='Outward codes copied to clipboard.'}catch{prompt('Copy these codes:',t)}};$('csv').onclick=()=>{let rows=coverageMode==='driving'?['outward_code,driving_miles,nearest_straight_line_miles,approx_drive_minutes,qualifying_postcode,points_tested,confidence',...results.map(r=>`${r.code},${r.driveMiles.toFixed(3)},${r.d.toFixed(3)},${r.driveMinutes==null?'':r.driveMinutes.toFixed(1)},${(r.qualifyingPostcode||'').replace(/,/g,' ')},${r.pointsTested||0},${r.confidence||''}`)]:['outward_code,nearest_postcode_point_miles,postcode_points_inside_radius',...results.map(r=>`${r.code},${r.d.toFixed(3)},${r.count}`)],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=coverageMode==='driving'?'able-driving-coverage.csv':'able-postcode-coverage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('coverageStraight').onclick=()=>{coverageMode='straight';$('coverageStraight').classList.add('active');$('coverageDriving').classList.remove('active');$('coverageModeNote').innerHTML='<b>Straight-line:</b> exact against every loaded postcode point. If any postcode in an outward code is inside the circle, that outward code is included.';$('results').classList.add('hidden')};$('coverageDriving').onclick=()=>{coverageMode='driving';$('coverageDriving').classList.add('active');$('coverageStraight').classList.remove('active');$('coverageModeNote').innerHTML='<b>Driving distance:</b> the app pre-filters by straight-line distance, then road-checks a <b>representative spread of postcode points</b> in each outward code. It tests up to 10 normally and up to 25 for borderline or awkward-geography districts. The shortest real road route wins. Results within 2 miles of your limit are marked as edge cases. Internet is required.';$('results').classList.add('hidden')};$('go').onclick=searchCoverage;$('postcode').addEventListener('keydown',e=>{if(e.key==='Enter')searchCoverage()});$('copy').onclick=async()=>{let t=results.map(r=>r.code).join(', ');try{await navigator.clipboard.writeText(t);$('searchStatus').textContent='Outward codes copied to clipboard.'}catch{prompt('Copy these codes:',t)}};$('csv').onclick=()=>{let rows=coverageMode==='driving'?['outward_code,driving_miles,nearest_straight_line_miles,approx_drive_minutes,qualifying_postcode,points_tested,confidence',...results.map(r=>`${r.code},${r.driveMiles.toFixed(3)},${r.d.toFixed(3)},${r.driveMinutes==null?'':r.driveMinutes.toFixed(1)},${(r.qualifyingPostcode||'').replace(/,/g,' ')},${r.pointsTested||0},${r.confidence||''}`)]:['outward_code,nearest_postcode_point_miles,postcode_points_inside_radius',...results.map(r=>`${r.code},${r.d.toFixed(3)},${r.count}`)],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=coverageMode==='driving'?'able-driving-coverage.csv':'able-postcode-coverage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 
 $('modeStraight').onclick=()=>{jobMode='straight';$('modeStraight').classList.add('active');$('modeDriving').classList.remove('active');$('jobStatus').className='status';updateJobControls()};
 $('modeDriving').onclick=()=>{jobMode='driving';$('modeDriving').classList.add('active');$('modeStraight').classList.remove('active');$('jobStatus').className='status';updateJobControls()};
