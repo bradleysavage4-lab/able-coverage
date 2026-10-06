@@ -178,11 +178,11 @@ body{
 }
 .headerIdentity{display:flex;align-items:center;gap:16px}
 .brandMark{
-  width:48px;height:48px;border-radius:10px;display:grid;place-items:center;
-  background:#2f7fd3;color:#fff;font-size:24px;font-weight:800;letter-spacing:-.04em;
-  box-shadow:none
+  width:60px;height:60px;border-radius:50%;display:grid;place-items:center;
+  background:#fff;border:1px solid #d9e3ec;overflow:hidden;flex:0 0 auto
 }
 .brand{font-size:10px;font-weight:800;letter-spacing:.16em;color:#7f91a6}
+.brandMark img{width:100%;height:100%;display:block;object-fit:contain}
 .title{font-size:32px;line-height:1.1;letter-spacing:-.025em;margin:4px 0 4px;font-weight:750}
 .version{
   font-size:10px;font-weight:700;letter-spacing:.06em;margin-left:6px;padding:3px 6px;
@@ -290,7 +290,7 @@ tr:hover td{background:#131f2b}
   .wrap{padding:16px 11px 40px}
   .appHeader{align-items:flex-start;flex-direction:column;gap:13px;padding-bottom:16px}
   .headerIdentity{align-items:flex-start}
-  .brandMark{width:42px;height:42px;font-size:21px;border-radius:8px}
+  .brandMark{width:52px;height:52px;border-radius:50%}
   .title{font-size:27px}
   .headerStatus{width:100%;min-width:0}
   .tabs{position:sticky;top:0;z-index:20;background:#0d141d;gap:0}
@@ -307,9 +307,9 @@ tr:hover td{background:#131f2b}
 <div class="wrap">
 <header class="appHeader">
     <div class="headerIdentity">
-      <div class="brandMark" aria-hidden="true">A</div>
+      <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
-        <div class="brand">ABLE GROUP · OPERATIONS</div>
+        <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
         <div class="title">Coverage Planner <span class="version">v9</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
