@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-label="Able Group">
+  <circle cx="110" cy="110" r="91" fill="#ffffff" stroke="#1488c9" stroke-width="8"/>
+  <circle cx="110" cy="110" r="73" fill="none" stroke="#1488c9" stroke-width="2.5"/>
+  <text x="110" y="104" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="47" font-weight="800" letter-spacing="1" fill="#1488c9">ABLE</text>
+  <line x1="44" y1="119" x2="176" y2="119" stroke="#1488c9" stroke-width="3"/>
+  <text x="110" y="148" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="24" font-weight="700" letter-spacing="5" fill="#1488c9">GROUP</text>
+</svg>
