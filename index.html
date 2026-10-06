@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v13</title>
+<title>Able Coverage Planner v14</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -653,7 +653,33 @@ a{color:#126ea6}
   .engineer{grid-template-columns:1fr}
   .summary{grid-template-columns:1fr 1fr}
 }
+
+/* v14 interactive map overhaul */
+.mapPane.leaflet-container{background:#edf3f6;font:inherit}
+.leaflet-control-zoom a{color:#17405b!important;border-color:#d1dce5!important}
+.leaflet-bar{border:1px solid #cdd9e3!important;box-shadow:0 2px 10px rgba(22,57,82,.12)!important}
+.leaflet-bar a{background:#fff!important}
+.leaflet-control-layers{border:1px solid #d0dce5!important;border-radius:6px!important;box-shadow:0 2px 12px rgba(22,57,82,.12)!important;color:#314e63!important}
+.leaflet-control-layers-expanded{padding:8px 10px!important}
+.leaflet-tooltip.able-map-label{background:#fff;border:1px solid #cfdce6;color:#173247;font-weight:800;font-size:11px;box-shadow:0 2px 8px rgba(22,57,82,.10);padding:3px 6px}
+.leaflet-tooltip.able-map-label:before{display:none}
+.leaflet-control-attribution{font-size:9px!important}
+.ableMapBadge{background:rgba(255,255,255,.96);border:1px solid #d3dee7;border-radius:7px;padding:8px 10px;color:#4d687a;box-shadow:0 2px 12px rgba(22,57,82,.12);font-size:11px;line-height:1.35}
+.ableMapBadge b{font-size:13px;color:#125f91}
+.ableMapLegend{background:rgba(255,255,255,.96);border:1px solid #d3dee7;border-radius:7px;padding:8px 10px;color:#4d687a;box-shadow:0 2px 12px rgba(22,57,82,.12);font-size:11px;line-height:1.55}
+.ablePin{width:26px;height:26px;border-radius:50% 50% 50% 0;background:#126fb3;border:3px solid #fff;box-shadow:0 3px 10px rgba(8,58,95,.28);transform:rotate(-45deg);position:relative}
+.ablePin:after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;left:6.5px;top:6.5px}
+.engineerPin{width:28px;height:28px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(23,50,71,.25);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px}
+.engineerPin.good{background:#258857}.engineerPin.edge{background:#c28b19}.engineerPin.bad{background:#c85656}
+.mapFallbackBanner{position:absolute;left:12px;right:12px;top:12px;z-index:4;background:#fff8e8;border:1px solid #ead6a2;color:#755915;border-radius:7px;padding:8px 10px;font-size:11px;box-shadow:0 2px 10px rgba(33,56,71,.12)}
+@media(max-width:640px){
+  .leaflet-control-layers-expanded{max-width:170px;font-size:11px}
+  .ableMapBadge{font-size:10px;padding:6px 8px}
+}
+
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 <div class="wrap">
@@ -662,7 +688,7 @@ a{color:#126ea6}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v13</span></div>
+        <div class="title">Coverage Planner <span class="version">v14</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -946,75 +972,168 @@ function mapZoomForMiles(miles){
   if(miles<=60)return 8;
   return 7;
 }
-function mapEmbedHtml(lat,lon,zoom,badge){
+
+function googleFallbackHtml(lat,lon,zoom,badge,kind='coverage'){
   let q=encodeURIComponent(lat+','+lon);
   let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
-  return '<div class="mapBadge">'+badge+'</div>'+
-    '<iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
-    '<div id="coverageOverlay" class="mapOverlay"></div>'+
-    '<div class="mapControls"><button type="button" onclick="coverageMapZoom(1)">+</button><button type="button" onclick="coverageMapZoom(-1)">−</button></div>'+
-    '<div class="mapLegend"><div class="legendRow"><span class="legendDot blue"></span>Search centre</div><div class="legendRow"><span class="legendDot green"></span>Within range</div><div class="legendRow"><span class="legendDot amber"></span>Edge case</div></div>';
+  return '<div class="mapFallbackBanner">Interactive map tiles were unavailable, so the reliable fallback map is being shown.</div>'+
+    '<div class="mapBadge" style="top:50px"><b>'+badge+'</b></div>'+
+    '<iframe title="Map fallback" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
+    '<div id="'+(kind==='job'?'jobOverlay':'coverageOverlay')+'" class="'+(kind==='job'?'jobOverlay':'mapOverlay')+'"></div>';
 }
-
 function mercatorWorld(lat,lon,zoom){
-  let scale=256*Math.pow(2,zoom);
-  let x=(lon+180)/360*scale;
-  let sin=Math.sin(lat*Math.PI/180);
-  sin=Math.max(-0.9999,Math.min(0.9999,sin));
+  let scale=256*Math.pow(2,zoom),x=(lon+180)/360*scale;
+  let sin=Math.sin(lat*Math.PI/180);sin=Math.max(-0.9999,Math.min(0.9999,sin));
   let y=(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*scale;
   return {x,y};
 }
 function drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles){
-  let host=$('coverageOverlay');
-  if(!host)return;
+  let host=$('coverageOverlay');if(!host)return;
   let rect=host.getBoundingClientRect(),w=rect.width,h=rect.height;
   if(w<10||h<10){setTimeout(()=>drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles),120);return}
-  let c=mercatorWorld(centerLat,centerLon,zoom);
-  let mpp=156543.03392*Math.cos(centerLat*Math.PI/180)/Math.pow(2,zoom);
-  let radiusPx=(radiusMiles*1609.344)/mpp;
-  let maxMarkers=40;
-  let source=results.length>maxMarkers?results.slice(0,maxMarkers):results;
-  let circles='',labels='';
-  for(let i=0;i<source.length;i++){
-    let r=source[i],ll=enToWgs84(r.e,r.n),p=mercatorWorld(ll.lat,ll.lon,zoom);
-    let x=w/2+(p.x-c.x),y=h/2+(p.y-c.y);
-    if(x<-20||x>w+20||y<-20||y>h+20)continue;
-    let edge=coverageMode==='driving'&&r.confidence==='edge';
-    let colour=edge?'#c6922a':'#2d9b63';
-    circles+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" fill="'+colour+'" stroke="#fff" stroke-width="1.5" opacity=".92"/>';
-    if(i<12)labels+='<text x="'+(x+7).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+r.code+'</text>';
-  }
-  let ring=Math.min(radiusPx,Math.max(w,h)*1.2);
-  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
-    '<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="'+ring.toFixed(1)+'" fill="rgba(20,136,201,.06)" stroke="#1488c9" stroke-width="2.5" stroke-dasharray="7 5"/>'+
-    circles+
-    '<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="7" fill="#1488c9" stroke="#fff" stroke-width="2.5"/>'+
-    labels+
-    '</svg>';
+  let c=mercatorWorld(centerLat,centerLon,zoom),mpp=156543.03392*Math.cos(centerLat*Math.PI/180)/Math.pow(2,zoom);
+  let radiusPx=(radiusMiles*1609.344)/mpp,circles='',labels='';
+  results.slice(0,40).forEach((r,i)=>{
+    let ll=enToWgs84(r.e,r.n),p=mercatorWorld(ll.lat,ll.lon,zoom),x=w/2+(p.x-c.x),y=h/2+(p.y-c.y);
+    if(x<-20||x>w+20||y<-20||y>h+20)return;
+    let edge=coverageMode==='driving'&&r.confidence==='edge',colour=edge?'#c28b19':'#258857';
+    circles+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="5" fill="'+colour+'" stroke="#fff" stroke-width="2"/>';
+    if(i<12)labels+='<text x="'+(x+8).toFixed(1)+'" y="'+(y-7).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="800" fill="#173247" stroke="#fff" stroke-width="3" paint-order="stroke">'+r.code+'</text>';
+  });
+  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><circle cx="'+w/2+'" cy="'+h/2+'" r="'+Math.min(radiusPx,Math.max(w,h)*1.2).toFixed(1)+'" fill="rgba(21,127,190,.08)" stroke="#157fbe" stroke-width="2.5"/>'+circles+'<circle cx="'+w/2+'" cy="'+h/2+'" r="7" fill="#126fb3" stroke="#fff" stroke-width="2.5"/>'+labels+'</svg>';
 }
-
+function drawJobOverlay(jobLat,jobLon,zoom,checked){
+  let host=$('jobOverlay');if(!host)return;
+  let rect=host.getBoundingClientRect(),w=rect.width,h=rect.height;
+  if(w<10||h<10){setTimeout(()=>drawJobOverlay(jobLat,jobLon,zoom,checked),120);return}
+  let c=mercatorWorld(jobLat,jobLon,zoom),dots='',labels='';
+  checked.slice(0,25).forEach((x,i)=>{
+    let ll=enToWgs84(x.e,x.n),p=mercatorWorld(ll.lat,ll.lon,zoom),px=w/2+(p.x-c.x),py=h/2+(p.y-c.y);
+    if(px<-30||px>w+30||py<-30||py>h+30)return;
+    let col=x.edge?'#c28b19':(x.covers?'#258857':'#c85656');
+    dots+='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="7" fill="'+col+'" stroke="#fff" stroke-width="2"/><text x="'+px.toFixed(1)+'" y="'+(py+3.5).toFixed(1)+'" text-anchor="middle" font-size="9" font-family="system-ui" font-weight="900" fill="#fff">'+(i+1)+'</text>';
+    if(i<8)labels+='<text x="'+(px+10).toFixed(1)+'" y="'+(py-8).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="800" fill="#173247" stroke="#fff" stroke-width="3" paint-order="stroke">'+escapeHtml(x.name)+'</text>';
+  });
+  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+dots+'<circle cx="'+w/2+'" cy="'+h/2+'" r="9" fill="#126fb3" stroke="#fff" stroke-width="3"/>'+labels+'</svg>';
+}
+let coverageLeafletMap=null,jobLeafletMap=null,coverageMapState=null,jobMapState=null;
+function makePinIcon(){
+  return L.divIcon({className:'',html:'<div class="ablePin"></div>',iconSize:[26,34],iconAnchor:[13,30]});
+}
+function makeEngineerIcon(rank,state){
+  return L.divIcon({className:'',html:'<div class="engineerPin '+state+'">'+rank+'</div>',iconSize:[28,28],iconAnchor:[14,14]});
+}
+function addBadgeControl(map,htmlText){
+  let C=L.Control.extend({options:{position:'topleft'},onAdd:function(){let d=L.DomUtil.create('div','ableMapBadge');d.innerHTML=htmlText;L.DomEvent.disableClickPropagation(d);return d}});
+  new C().addTo(map);
+}
+function addLegendControl(map,rows){
+  let C=L.Control.extend({options:{position:'bottomright'},onAdd:function(){let d=L.DomUtil.create('div','ableMapLegend');d.innerHTML=rows.map(r=>'<div class="legendRow"><span class="legendDot" style="background:'+r[0]+'"></span>'+r[1]+'</div>').join('');return d}});
+  new C().addTo(map);
+}
+function attachReliableTiles(map,onFail){
+  let switched=false,finished=false;
+  function osm(){
+    if(finished)return;
+    switched=true;let errors=0,loaded=false;
+    let layer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'});
+    layer.on('tileload',()=>loaded=true);
+    layer.on('tileerror',()=>{errors++;if(errors>=5&&!finished){finished=true;onFail()}});
+    layer.addTo(map);
+    setTimeout(()=>{if(!loaded&&!finished){finished=true;onFail()}},6500);
+  }
+  let errors=0,loaded=false;
+  let carto=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'&copy; OpenStreetMap &copy; CARTO'});
+  carto.on('tileload',()=>loaded=true);
+  carto.on('tileerror',()=>{errors++;if(errors>=5&&!switched){try{map.removeLayer(carto)}catch(e){};osm()}});
+  carto.addTo(map);
+  setTimeout(()=>{if(!loaded&&!switched){try{map.removeLayer(carto)}catch(e){};osm()}},5000);
+}
+function fallbackCoverage(){
+  if(!coverageMapState)return;
+  let s=coverageMapState;
+  try{if(coverageLeafletMap)coverageLeafletMap.remove()}catch(e){}
+  coverageLeafletMap=null;
+  $('plotMap').innerHTML=googleFallbackHtml(s.lat,s.lon,s.zoom,s.start+' · '+s.miles.toFixed(0)+' mile search','coverage');
+  setTimeout(()=>drawCoverageOverlay(s.lat,s.lon,s.zoom,s.miles),500);
+}
+function fallbackJob(){
+  if(!jobMapState)return;
+  let s=jobMapState;
+  try{if(jobLeafletMap)jobLeafletMap.remove()}catch(e){}
+  jobLeafletMap=null;
+  $('jobMap').innerHTML=googleFallbackHtml(s.lat,s.lon,s.zoom,displayPC(s.pc),'job');
+  setTimeout(()=>drawJobOverlay(s.lat,s.lon,s.zoom,s.checked),500);
+}
+function renderCoverageLeaflet(lat,lon,rm,start,miles){
+  let zoom=mapZoomForMiles(miles);
+  coverageMapState={lat,lon,zoom,rm,start,miles};
+  if(typeof L==='undefined'){fallbackCoverage();return}
+  try{
+    if(coverageLeafletMap)coverageLeafletMap.remove();
+    $('plotMap').innerHTML='';
+    let map=coverageLeafletMap=L.map('plotMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
+    map.setView([lat,lon],zoom);
+    attachReliableTiles(map,fallbackCoverage);
+    let radiusLayer=L.layerGroup().addTo(map),pointsLayer=L.layerGroup().addTo(map);
+    let radius=L.circle([lat,lon],{radius:rm,color:'#157fbe',weight:2.5,fillColor:'#4aa7df',fillOpacity:.12}).addTo(radiusLayer);
+    L.marker([lat,lon],{icon:makePinIcon(),zIndexOffset:1000}).bindTooltip(start,{direction:'right',offset:[9,-8],className:'able-map-label'}).addTo(pointsLayer);
+    results.slice(0,80).forEach((r,i)=>{
+      let ll=enToWgs84(r.e,r.n),edge=coverageMode==='driving'&&r.confidence==='edge';
+      let marker=L.circleMarker([ll.lat,ll.lon],{radius:6,color:'#fff',weight:2,fillColor:edge?'#c28b19':'#258857',fillOpacity:1}).addTo(pointsLayer);
+      marker.bindTooltip(r.code,{permanent:i<14,direction:'top',offset:[0,-5],className:'able-map-label'});
+    });
+    L.control.layers(null,{'Search radius':radiusLayer,'Outward code points':pointsLayer},{collapsed:window.innerWidth<700,position:'topright'}).addTo(map);
+    addBadgeControl(map,'<b>'+start+'</b><br>'+miles.toFixed(0)+' mile search · '+results.length+' outward codes');
+    addLegendControl(map,[['#126fb3','Search centre'],['#258857','Within range'],['#c28b19','Edge case']]);
+    map.fitBounds(radius.getBounds(),{padding:[22,22],maxZoom:14});
+    setTimeout(()=>map.invalidateSize(),120);
+  }catch(e){console.warn('Interactive coverage map failed',e);fallbackCoverage()}
+}
+function renderJobLeaflet(lat,lon,checked,pc,farthest){
+  let zoom=mapZoomForMiles(farthest);
+  jobMapState={lat,lon,zoom,checked,pc};
+  if(typeof L==='undefined'){fallbackJob();return}
+  try{
+    if(jobLeafletMap)jobLeafletMap.remove();
+    $('jobMap').innerHTML='';
+    let map=jobLeafletMap=L.map('jobMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
+    map.setView([lat,lon],zoom);
+    attachReliableTiles(map,fallbackJob);
+    let engineerLayer=L.layerGroup().addTo(map),radiusLayer=L.layerGroup();
+    let bounds=L.latLngBounds([[lat,lon],[lat,lon]]);
+    L.marker([lat,lon],{icon:makePinIcon(),zIndexOffset:1200}).bindTooltip('Job · '+displayPC(pc),{permanent:true,direction:'right',offset:[9,-8],className:'able-map-label'}).addTo(engineerLayer);
+    checked.slice(0,25).forEach((x,i)=>{
+      let ll=enToWgs84(x.e,x.n),state=x.edge?'edge':(x.covers?'good':'bad');
+      let marker=L.marker([ll.lat,ll.lon],{icon:makeEngineerIcon(i+1,state)}).addTo(engineerLayer);
+      marker.bindTooltip((i+1)+'. '+escapeHtml(x.name)+' · '+displayPC(x.postcode),{permanent:i<6,direction:'right',offset:[10,0],className:'able-map-label'});
+      L.circle([ll.lat,ll.lon],{radius:Number(x.radius)*1609.344,color:state==='good'?'#258857':state==='edge'?'#c28b19':'#c85656',weight:1,fillOpacity:.025,opacity:.28}).addTo(radiusLayer);
+      bounds.extend([ll.lat,ll.lon]);
+    });
+    L.control.layers(null,{'Engineer markers':engineerLayer,'Coverage radii':radiusLayer},{collapsed:window.innerWidth<700,position:'topright'}).addTo(map);
+    addBadgeControl(map,'<b>'+displayPC(pc)+'</b><br>'+checked.length+' saved coverage area'+(checked.length===1?'':'s'));
+    addLegendControl(map,[['#126fb3','Job'],['#258857','Covers'],['#c28b19','Edge case'],['#c85656','Outside']]);
+    if(bounds.isValid())map.fitBounds(bounds,{padding:[38,38],maxZoom:12});
+    setTimeout(()=>map.invalidateSize(),120);
+  }catch(e){console.warn('Interactive job map failed',e);fallbackJob()}
+}
 function coverageMapZoom(delta){
-  if(!lastCoverageOverlay)return;
-  lastCoverageOverlay.zoom=Math.max(5,Math.min(15,lastCoverageOverlay.zoom+delta));
-  let ll=lastCoverageOverlay;
-  let badge='<b>'+ll.start+'</b><br>'+ll.miles.toFixed(0)+' mile search · '+results.length+' outward codes';
-  $('plotMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,ll.zoom,badge);
-  setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,ll.zoom,ll.miles),450);
+  if(coverageLeafletMap){coverageLeafletMap.zoomIn(delta);return}
+  if(!coverageMapState)return;
+  coverageMapState.zoom=Math.max(5,Math.min(15,coverageMapState.zoom+delta));
+  fallbackCoverage();
 }
 window.coverageMapZoom=coverageMapZoom;
 function renderPlot(ce,cn,rm,start){
-  let ll=enToWgs84(ce,cn);
-  let miles=rm/1609.344;
-  let zoom=mapZoomForMiles(miles);
-  $('plotMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,zoom,'<b>'+start+'</b><br>'+miles.toFixed(0)+' mile search · '+results.length+' outward codes');
+  let ll=enToWgs84(ce,cn),miles=rm/1609.344;
+  renderCoverageLeaflet(ll.lat,ll.lon,rm,start,miles);
   if($('heroCentre'))$('heroCentre').textContent=start;
   if($('heroMiles'))$('heroMiles').textContent=miles.toFixed(0)+' mi';
   if($('heroCodes'))$('heroCodes').textContent=results.length.toLocaleString();
   if($('heroMode'))$('heroMode').textContent=coverageMode==='driving'?'Driving':'Straight-line';
   if($('coverageValidation')){
     if(coverageMode==='driving'){
-      let edgeCount=results.filter(r=>r.confidence==='edge').length;
-      let confirmed=results.length-edgeCount;
+      let edgeCount=results.filter(r=>r.confidence==='edge').length,confirmed=results.length-edgeCount;
       $('coverageValidation').className='validationStrip'+(edgeCount?' edge':'');
       $('validationTitle').textContent=edgeCount?'Driving results include edge cases':'Driving results confirmed';
       $('validationText').textContent=confirmed+' confirmed outward code'+(confirmed===1?'':'s')+(edgeCount?' · '+edgeCount+' within 2 miles of the selected limit and worth checking manually.':'')+' Each district was road-tested using up to 10 representative postcode points, with up to 25 tested for borderline or awkward-geography cases.';
@@ -1026,41 +1145,17 @@ function renderPlot(ce,cn,rm,start){
       $('validationBadge').textContent='EXACT SCAN';
     }
   }
-  $('plotNote').innerHTML='<b>Coverage overlay:</b> use the + / − buttons on the map so the map and postcode markers stay synchronised. Dashed blue circle = selected mileage; green/amber dots = qualifying outward-code points. To keep the view readable, the map plots up to 40 of the nearest results.';
-  lastCoverageOverlay={lat:ll.lat,lon:ll.lon,zoom,miles,start};setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,zoom,miles),450);
-}
-let lastCoverageOverlay=null;
-function redrawCoverageOverlay(){if(lastCoverageOverlay)drawCoverageOverlay(lastCoverageOverlay.lat,lastCoverageOverlay.lon,lastCoverageOverlay.zoom,lastCoverageOverlay.miles)}
-window.addEventListener('resize',()=>{clearTimeout(window.__coverageResize);window.__coverageResize=setTimeout(redrawCoverageOverlay,180)});
-function drawJobOverlay(jobLat,jobLon,zoom,checked){
-  let host=$('jobOverlay');if(!host)return;
-  let rect=host.getBoundingClientRect(),w=rect.width,h=rect.height;
-  if(w<10||h<10){setTimeout(()=>drawJobOverlay(jobLat,jobLon,zoom,checked),120);return}
-  let c=mercatorWorld(jobLat,jobLon,zoom),dots='',labels='';
-  checked.slice(0,25).forEach((x,i)=>{
-    let ll=enToWgs84(x.e,x.n),p=mercatorWorld(ll.lat,ll.lon,zoom);
-    let px=w/2+(p.x-c.x),py=h/2+(p.y-c.y);
-    if(px<-30||px>w+30||py<-30||py>h+30)return;
-    let col=x.covers?'#2d9b63':'#cc5d5d';
-    dots+='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="6" fill="'+col+'" stroke="#fff" stroke-width="2"/>';
-    if(i<10)labels+='<text x="'+(px+9).toFixed(1)+'" y="'+(py-7).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+escapeHtml(x.name)+'</text>';
-  });
-  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+dots+'<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="8" fill="#1488c9" stroke="#fff" stroke-width="3"/>'+labels+'</svg>';
+  $('plotNote').innerHTML='<b>Interactive geographic view:</b> pan and zoom normally. Blue shading is the selected mileage radius; green/amber markers are the postcode points that qualified each outward code. The map is a geographic reference — the results table remains the authoritative calculation.';
 }
 function renderJobPlot(je,jn,checked,pc){
   let ll=enToWgs84(je,jn);
   let farthest=Math.max(5,...checked.map(x=>x.d||0),...checked.map(x=>Number(x.radius)||0));
-  let zoom=mapZoomForMiles(farthest);
-  let q=encodeURIComponent(ll.lat+','+ll.lon);
-  let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
-  $('jobMap').innerHTML='<div class="mapBadge"><b>'+displayPC(pc)+'</b><br>'+checked.length+' saved coverage area'+(checked.length===1?'':'s')+'</div><iframe title="Job map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe><div id="jobOverlay" class="jobOverlay"></div><div class="jobLegend"><div class="legendRow"><span class="legendDot blue"></span>Job</div><div class="legendRow"><span class="legendDot green"></span>Covers job</div><div class="legendRow"><span class="legendDot" style="background:#cc5d5d"></span>Outside radius</div></div>';
-  setTimeout(()=>drawJobOverlay(ll.lat,ll.lon,zoom,checked),450);
+  renderJobLeaflet(ll.lat,ll.lon,checked,pc,farthest);
   if($('jobMapNote')){
     let covers=checked.filter(x=>x.covers).length;
-    $('jobMapNote').innerHTML='<b>Job map:</b> '+covers+' of '+checked.length+' saved coverage area'+(checked.length===1?'':'s')+' currently '+(covers===1?'covers':'cover')+' this job in '+(jobMode==='driving'?'driving':'straight-line')+' mode.';
+    $('jobMapNote').innerHTML='<b>Interactive job map:</b> '+covers+' of '+checked.length+' saved coverage area'+(checked.length===1?'':'s')+' currently '+(covers===1?'covers':'cover')+' this job in '+(jobMode==='driving'?'driving':'straight-line')+' mode. Toggle saved coverage radii from the map layers control.';
   }
 }
-
 $('coverageStraight').onclick=()=>{coverageMode='straight';$('coverageStraight').classList.add('active');$('coverageDriving').classList.remove('active');$('coverageModeNote').innerHTML='<b>Straight-line:</b> exact against every loaded postcode point. If any postcode in an outward code is inside the circle, that outward code is included.';$('results').classList.add('hidden')};$('coverageDriving').onclick=()=>{coverageMode='driving';$('coverageDriving').classList.add('active');$('coverageStraight').classList.remove('active');$('coverageModeNote').innerHTML='<b>Driving distance:</b> the app pre-filters by straight-line distance, then road-checks a <b>representative spread of postcode points</b> in each outward code. It tests up to 10 normally and up to 25 for borderline or awkward-geography districts. The shortest real road route wins. Results within 2 miles of your limit are marked as edge cases. Internet is required.';$('results').classList.add('hidden')};$('go').onclick=searchCoverage;$('postcode').addEventListener('keydown',e=>{if(e.key==='Enter')searchCoverage()});$('copy').onclick=async()=>{let t=results.map(r=>r.code).join(', ');try{await navigator.clipboard.writeText(t);$('searchStatus').textContent='Outward codes copied to clipboard.'}catch{prompt('Copy these codes:',t)}};$('csv').onclick=()=>{let rows=coverageMode==='driving'?['outward_code,driving_miles,nearest_straight_line_miles,approx_drive_minutes,qualifying_postcode,points_tested,confidence',...results.map(r=>`${r.code},${r.driveMiles.toFixed(3)},${r.d.toFixed(3)},${r.driveMinutes==null?'':r.driveMinutes.toFixed(1)},${(r.qualifyingPostcode||'').replace(/,/g,' ')},${r.pointsTested||0},${r.confidence||''}`)]:['outward_code,nearest_postcode_point_miles,postcode_points_inside_radius',...results.map(r=>`${r.code},${r.d.toFixed(3)},${r.count}`)],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=coverageMode==='driving'?'able-driving-coverage.csv':'able-postcode-coverage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 
 $('modeStraight').onclick=()=>{jobMode='straight';$('modeStraight').classList.add('active');$('modeDriving').classList.remove('active');$('jobStatus').className='status';updateJobControls()};
