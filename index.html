@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v14</title>
+<title>Able Coverage Planner v14.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -688,7 +688,7 @@ a{color:#126ea6}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v14</span></div>
+        <div class="title">Coverage Planner <span class="version">v14.1</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -973,12 +973,18 @@ function mapZoomForMiles(miles){
   return 7;
 }
 
-function googleFallbackHtml(lat,lon,zoom,badge,kind='coverage'){
-  let q=encodeURIComponent(lat+','+lon);
-  let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
-  return '<div class="mapFallbackBanner">Interactive map tiles were unavailable, so the reliable fallback map is being shown.</div>'+
+function osmFallbackHtml(lat,lon,zoom,badge,kind='coverage'){
+  let spanLat=Math.max(.015,360/Math.pow(2,zoom)*.8);
+  let cos=Math.max(.25,Math.cos(lat*Math.PI/180));
+  let spanLon=spanLat/cos;
+  let left=(lon-spanLon).toFixed(6),right=(lon+spanLon).toFixed(6);
+  let bottom=(lat-spanLat).toFixed(6),top=(lat+spanLat).toFixed(6);
+  let bbox=encodeURIComponent(left+','+bottom+','+right+','+top);
+  let marker=encodeURIComponent(lat+','+lon);
+  let src='https://www.openstreetmap.org/export/embed.html?bbox='+bbox+'&layer=mapnik&marker='+marker;
+  return '<div class="mapFallbackBanner">Interactive tiles were unavailable, so the OpenStreetMap fallback is being shown.</div>'+
     '<div class="mapBadge" style="top:50px"><b>'+badge+'</b></div>'+
-    '<iframe title="Map fallback" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
+    '<iframe title="OpenStreetMap fallback" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
     '<div id="'+(kind==='job'?'jobOverlay':'coverageOverlay')+'" class="'+(kind==='job'?'jobOverlay':'mapOverlay')+'"></div>';
 }
 function mercatorWorld(lat,lon,zoom){
@@ -1032,29 +1038,32 @@ function addLegendControl(map,rows){
   new C().addTo(map);
 }
 function attachReliableTiles(map,onFail){
-  let switched=false,finished=false;
-  function osm(){
-    if(finished)return;
-    switched=true;let errors=0,loaded=false;
-    let layer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'});
-    layer.on('tileload',()=>loaded=true);
-    layer.on('tileerror',()=>{errors++;if(errors>=5&&!finished){finished=true;onFail()}});
+  let finished=false,switched=false;
+  function addLayer(url,options,next){
+    let errors=0,loaded=false;
+    let layer=L.tileLayer(url,options);
+    layer.on('tileload',()=>{loaded=true});
+    layer.on('tileerror',()=>{errors++;if(errors>=5&&!finished){try{map.removeLayer(layer)}catch(e){};next()}});
     layer.addTo(map);
-    setTimeout(()=>{if(!loaded&&!finished){finished=true;onFail()}},6500);
+    setTimeout(()=>{if(!loaded&&!finished){try{map.removeLayer(layer)}catch(e){};next()}},5500);
   }
-  let errors=0,loaded=false;
-  let carto=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:20,attribution:'&copy; OpenStreetMap &copy; CARTO'});
-  carto.on('tileload',()=>loaded=true);
-  carto.on('tileerror',()=>{errors++;if(errors>=5&&!switched){try{map.removeLayer(carto)}catch(e){};osm()}});
-  carto.addTo(map);
-  setTimeout(()=>{if(!loaded&&!switched){try{map.removeLayer(carto)}catch(e){};osm()}},5000);
+  function hot(){
+    if(switched||finished)return;
+    switched=true;
+    addLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+      {maxZoom:19,attribution:'&copy; OpenStreetMap contributors, Tiles style by HOT'},
+      ()=>{if(!finished){finished=true;onFail()}});
+  }
+  addLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19,attribution:'&copy; OpenStreetMap contributors'},
+    hot);
 }
 function fallbackCoverage(){
   if(!coverageMapState)return;
   let s=coverageMapState;
   try{if(coverageLeafletMap)coverageLeafletMap.remove()}catch(e){}
   coverageLeafletMap=null;
-  $('plotMap').innerHTML=googleFallbackHtml(s.lat,s.lon,s.zoom,s.start+' · '+s.miles.toFixed(0)+' mile search','coverage');
+  $('plotMap').innerHTML=osmFallbackHtml(s.lat,s.lon,s.zoom,s.start+' · '+s.miles.toFixed(0)+' mile search','coverage');
   setTimeout(()=>drawCoverageOverlay(s.lat,s.lon,s.zoom,s.miles),500);
 }
 function fallbackJob(){
@@ -1062,7 +1071,7 @@ function fallbackJob(){
   let s=jobMapState;
   try{if(jobLeafletMap)jobLeafletMap.remove()}catch(e){}
   jobLeafletMap=null;
-  $('jobMap').innerHTML=googleFallbackHtml(s.lat,s.lon,s.zoom,displayPC(s.pc),'job');
+  $('jobMap').innerHTML=osmFallbackHtml(s.lat,s.lon,s.zoom,displayPC(s.pc),'job');
   setTimeout(()=>drawJobOverlay(s.lat,s.lon,s.zoom,s.checked),500);
 }
 function renderCoverageLeaflet(lat,lon,rm,start,miles){
