@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.1</title>
+<title>Able Coverage Planner v11.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -520,7 +520,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.1</span></div>
+        <div class="title">Coverage Planner <span class="version">v11.2</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -716,10 +716,23 @@ function enToLatLng(e,n){
   return [p[1],p[0]];
 }
 function addBaseTiles(map){
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  let primary=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    subdomains:'abcd',
+    maxZoom:20,
+    attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
+  });
+  let fallback=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     maxZoom:19,
     attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
+  });
+  let switched=false;
+  primary.on('tileerror',()=>{
+    if(switched)return;
+    switched=true;
+    try{map.removeLayer(primary)}catch(e){}
+    fallback.addTo(map);
+  });
+  primary.addTo(map);
 }
 function ensureCoverageMap(){
   if(coverageMap)return coverageMap;
