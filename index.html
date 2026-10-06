@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.4</title>
+<title>Able Coverage Planner v11.5</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -527,6 +527,13 @@ a{color:#0f73ad}
   .mapPane{height:430px}
   .mapHeader{align-items:flex-start;flex-direction:column}
 }
+
+.mapOverlay{position:absolute;inset:0;z-index:1;pointer-events:none}
+.mapOverlay svg{width:100%;height:100%;display:block}
+.mapLegend{position:absolute;right:12px;bottom:12px;z-index:2;background:rgba(255,255,255,.96);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:11px;color:#486579;line-height:1.5}
+.legendRow{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.legendDot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.legendDot.blue{background:#1488c9}.legendDot.green{background:#2d9b63}.legendDot.amber{background:#c6922a}
 </style>
 </head>
 <body>
@@ -536,7 +543,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.4</span></div>
+        <div class="title">Coverage Planner <span class="version">v11.5</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -753,7 +760,44 @@ function mapZoomForMiles(miles){
 function mapEmbedHtml(lat,lon,zoom,badge){
   let q=encodeURIComponent(lat+','+lon);
   let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
-  return '<div class="mapBadge">'+badge+'</div><iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>';
+  return '<div class="mapBadge">'+badge+'</div><iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe><div id="coverageOverlay" class="mapOverlay"></div><div class="mapLegend"><div class="legendRow"><span class="legendDot blue"></span>Search centre</div><div class="legendRow"><span class="legendDot green"></span>Within range</div><div class="legendRow"><span class="legendDot amber"></span>Edge case</div></div>';
+}
+
+function mercatorWorld(lat,lon,zoom){
+  let scale=256*Math.pow(2,zoom);
+  let x=(lon+180)/360*scale;
+  let sin=Math.sin(lat*Math.PI/180);
+  sin=Math.max(-0.9999,Math.min(0.9999,sin));
+  let y=(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*scale;
+  return {x,y};
+}
+function drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles){
+  let host=$('coverageOverlay');
+  if(!host)return;
+  let rect=host.getBoundingClientRect(),w=rect.width,h=rect.height;
+  if(w<10||h<10){setTimeout(()=>drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles),120);return}
+  let c=mercatorWorld(centerLat,centerLon,zoom);
+  let mpp=156543.03392*Math.cos(centerLat*Math.PI/180)/Math.pow(2,zoom);
+  let radiusPx=(radiusMiles*1609.344)/mpp;
+  let maxMarkers=70;
+  let source=results.length>maxMarkers?results.slice(0,maxMarkers):results;
+  let circles='',labels='';
+  for(let i=0;i<source.length;i++){
+    let r=source[i],ll=enToWgs84(r.e,r.n),p=mercatorWorld(ll.lat,ll.lon,zoom);
+    let x=w/2+(p.x-c.x),y=h/2+(p.y-c.y);
+    if(x<-20||x>w+20||y<-20||y>h+20)continue;
+    let edge=coverageMode==='driving'&&r.confidence==='edge';
+    let colour=edge?'#c6922a':'#2d9b63';
+    circles+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" fill="'+colour+'" stroke="#fff" stroke-width="1.5" opacity=".92"/>';
+    if(i<18)labels+='<text x="'+(x+7).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+r.code+'</text>';
+  }
+  let ring=Math.min(radiusPx,Math.max(w,h)*1.2);
+  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="'+ring.toFixed(1)+'" fill="rgba(20,136,201,.06)" stroke="#1488c9" stroke-width="2.5" stroke-dasharray="7 5"/>'+
+    circles+
+    '<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="7" fill="#1488c9" stroke="#fff" stroke-width="2.5"/>'+
+    labels+
+    '</svg>';
 }
 function renderPlot(ce,cn,rm,start){
   let ll=enToWgs84(ce,cn);
@@ -764,8 +808,12 @@ function renderPlot(ce,cn,rm,start){
   if($('heroMiles'))$('heroMiles').textContent=miles.toFixed(0)+' mi';
   if($('heroCodes'))$('heroCodes').textContent=results.length.toLocaleString();
   if($('heroMode'))$('heroMode').textContent=coverageMode==='driving'?'Driving':'Straight-line';
-  $('plotNote').innerHTML='<b>Map reference:</b> centred on '+start+'. The map is for visual orientation; the postcode list and distance calculations remain the authoritative coverage results.';
+  $('plotNote').innerHTML='<b>Coverage overlay:</b> dashed blue circle = selected mileage. Dots show qualifying outward-code points; driving edge cases are amber. The postcode list and calculated distances remain the authoritative results.';
+  lastCoverageOverlay={lat:ll.lat,lon:ll.lon,zoom,miles};setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,zoom,miles),450);
 }
+let lastCoverageOverlay=null;
+function redrawCoverageOverlay(){if(lastCoverageOverlay)drawCoverageOverlay(lastCoverageOverlay.lat,lastCoverageOverlay.lon,lastCoverageOverlay.zoom,lastCoverageOverlay.miles)}
+window.addEventListener('resize',()=>{clearTimeout(window.__coverageResize);window.__coverageResize=setTimeout(redrawCoverageOverlay,180)});
 function renderJobPlot(je,jn,checked,pc){
   let ll=enToWgs84(je,jn);
   let maxRadius=Math.max(5,...checked.map(x=>Number(x.radius)||0));
