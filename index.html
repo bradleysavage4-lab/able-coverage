@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v14.1</title>
+<title>Able Coverage Planner v15</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -680,6 +680,7 @@ a{color:#126ea6}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -688,7 +689,7 @@ a{color:#126ea6}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v14.1</span></div>
+        <div class="title">Coverage Planner <span class="version">v15</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -706,10 +707,9 @@ a{color:#126ea6}
   </div>
   <div id="dataSetup" class="hidden" style="margin-top:14px">
     <div id="needData" class="filebox">
-      <div class="notice"><b>First-time setup:</b> select the extracted Ordnance Survey <b>Code-Point Open CSV</b> files. On Android, choose the CSV files from the extracted <b>Data/CSV</b> folder. The processed data stays in this browser.</div>
-      <ol class="help"><li>Download and extract Code-Point Open (CSV).</li><li>On Android, open the extracted <b>Data/CSV</b> folder and select the CSV files. On desktop you can select the whole extracted folder.</li></ol>
-      <div class="row" style="margin-top:10px"><a href="https://www.ordnancesurvey.co.uk/products/code-point-open" target="_blank" rel="noopener">Open official download page</a></div>
-      <div style="margin-top:12px"><input id="folder" type="file" webkitdirectory multiple accept=".csv,text/csv"></div>
+      <div class="notice"><b>Automatic setup:</b> on first use, the app downloads the official Ordnance Survey <b>Code-Point Open</b> postcode dataset and stores the processed copy in this browser. No folder upload is normally needed.</div>
+      <div class="row" style="margin-top:10px"><button type="button" class="secondary" id="autoData">Download postcode data</button><a href="https://www.ordnancesurvey.co.uk/products/code-point-open" target="_blank" rel="noopener">About the official dataset</a></div>
+      <details style="margin-top:12px"><summary class="small" style="cursor:pointer;font-weight:700">Manual fallback</summary><div class="small" style="margin:8px 0">If automatic setup is blocked by the browser or network, you can still select extracted Code-Point Open CSV files manually.</div><input id="folder" type="file" webkitdirectory multiple accept=".csv,text/csv"></details>
       <div id="progressWrap" class="progressWrap hidden"><div class="progress"><div id="bar" class="bar"></div></div><div id="progressText" class="progressText"></div></div>
     </div>
     <div id="loadedActions" class="row hidden" style="margin-top:12px"><button class="secondary" id="replaceData">Replace/update dataset</button><button class="danger" id="clearData">Clear local dataset</button></div>
@@ -883,10 +883,82 @@ async function dbClear(){let db=await openDB();return new Promise((res,rej)=>{le
 function saveEngineers(){localStorage.setItem(ENG_KEY,JSON.stringify(engineers))}
 function loadEngineers(){try{engineers=JSON.parse(localStorage.getItem(ENG_KEY)||'[]');if(!Array.isArray(engineers))engineers=[]}catch{engineers=[]}renderEngineers();updateJobControls()}
 function setDataUI(ok,msg){$('dataDot').className='dot'+(ok?' good':'');$('dataBadge').textContent=ok?'National postcode data ready':'National postcode data needed';$('dataMiniText').textContent=msg;$('go').disabled=!ok;$('addEngineer').disabled=!ok;$('needData').classList.toggle('hidden',ok);$('loadedActions').classList.toggle('hidden',!ok);$('dataStatus').className='status '+(ok?'ok':'warn');$('dataStatus').textContent=msg;$('searchStatus').className='status';$('searchStatus').textContent=ok?'Enter a full postcode and choose a radius.':'Load the national postcode dataset first.';$('engineerStatus').className='status';$('engineerStatus').textContent=ok?'Enter a name, base postcode and radius.':'Load postcode data to add service areas.';updateJobControls()}
-async function restore(){try{let meta=await dbGet('meta'),payload=await dbGet('payload');if(meta&&payload){dataset={meta,e:new Int32Array(payload.e),n:new Int32Array(payload.n),o:new Uint16Array(payload.o),outcodes:payload.outcodes,pcMap:payload.pcMap};setDataUI(true,`${meta.points.toLocaleString()} postcode points · ${meta.outcodes.toLocaleString()} outward codes · imported ${new Date(meta.imported).toLocaleDateString()}`)}else setDataUI(false,'No national postcode dataset is stored in this browser yet.')}catch(e){setDataUI(false,'Could not read local postcode data. Open Postcode data and import Code-Point Open again.')}}
+async function restore(){try{let meta=await dbGet('meta'),payload=await dbGet('payload');if(meta&&payload){dataset={meta,e:new Int32Array(payload.e),n:new Int32Array(payload.n),o:new Uint16Array(payload.o),outcodes:payload.outcodes,pcMap:payload.pcMap};setDataUI(true,meta.points.toLocaleString()+' postcode points · '+meta.outcodes.toLocaleString()+' outward codes · ready on this device');return true}else{setDataUI(false,'Postcode data has not been installed on this device yet.');return false}}catch(e){setDataUI(false,'Could not read local postcode data. The app will try to reinstall it.');return false}}
 function csvFirst4(line){let out=[],cur='',q=false;for(let i=0;i<line.length&&out.length<4;i++){let c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===','&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
+const AUTO_POSTCODE_URL='https://api.os.uk/downloads/v1/products/CodePointOpen/downloads?area=GB&format=CSV&redirect';
+let autoDataBusy=false;
+
+async function saveProcessedDataset(es,ns,oids,outcodes,pcMap,fileCount,sourceLabel){
+  if(es.length<100000)throw new Error('The downloaded data did not look like the full national postcode dataset.');
+  let E=Int32Array.from(es),N=Int32Array.from(ns),O=Uint16Array.from(oids);
+  let payload={e:E.buffer,n:N.buffer,o:O.buffer,outcodes,pcMap};
+  let meta={points:es.length,outcodes:outcodes.length,files:fileCount,imported:Date.now(),source:sourceLabel||'Code-Point Open'};
+  $('progressText').textContent='Saving postcode data on this device…';
+  $('bar').style.width='98%';
+  await dbPut('payload',payload);await dbPut('meta',meta);
+  dataset={meta,e:E,n:N,o:O,outcodes,pcMap};
+  $('bar').style.width='100%';
+  setTimeout(()=>$('progressWrap').classList.add('hidden'),350);
+  setDataUI(true,es.length.toLocaleString()+' postcode points · '+outcodes.length.toLocaleString()+' outward codes · ready on this device');
+}
+
+async function autoInstallPostcodeData(){
+  if(autoDataBusy||dataset)return;
+  if(!navigator.onLine){setDataUI(false,'Connect to the internet once so the postcode database can install automatically.');return}
+  if(typeof JSZip==='undefined'){setDataUI(false,'Automatic postcode setup could not start. Open Postcode data and use the manual fallback.');return}
+  autoDataBusy=true;
+  $('dataSetup').classList.remove('hidden');
+  $('progressWrap').classList.remove('hidden');
+  if($('autoData'))$('autoData').disabled=true;
+  $('bar').style.width='4%';
+  $('progressText').textContent='Downloading official postcode data…';
+  $('dataStatus').className='status';
+  $('dataStatus').textContent='First-time setup: downloading the postcode database. You only need to do this once per browser/device.';
+  try{
+    let r=await fetch(AUTO_POSTCODE_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('download failed ('+r.status+')');
+    let total=Number(r.headers.get('content-length'))||0,buf;
+    if(r.body&&total){
+      let reader=r.body.getReader(),chunks=[],received=0;
+      while(true){
+        let q=await reader.read();if(q.done)break;
+        chunks.push(q.value);received+=q.value.length;
+        let pct=Math.min(42,5+(received/total)*37);
+        $('bar').style.width=pct.toFixed(0)+'%';
+        $('progressText').textContent='Downloading official postcode data… '+Math.min(100,Math.round(received/total*100))+'%';
+      }
+      let joined=new Uint8Array(received),off=0;for(let c of chunks){joined.set(c,off);off+=c.length}buf=joined.buffer;
+    }else{buf=await r.arrayBuffer();$('bar').style.width='42%'}
+    $('progressText').textContent='Opening postcode database…';
+    let zip=await JSZip.loadAsync(buf);
+    let entries=Object.values(zip.files).filter(x=>!x.dir&&/\.csv$/i.test(x.name)&&/Data\/CSV\//i.test(x.name));
+    if(!entries.length)entries=Object.values(zip.files).filter(x=>!x.dir&&/\.csv$/i.test(x.name));
+    if(!entries.length)throw new Error('no CSV files were found in the download');
+    let es=[],ns=[],oids=[],outcodes=[],outId=new Map(),pcMap=new Map(),valid=0;
+    for(let fi=0;fi<entries.length;fi++){
+      $('progressText').textContent='Preparing postcode data… '+(fi+1)+' of '+entries.length;
+      $('bar').style.width=(42+52*((fi+1)/entries.length)).toFixed(0)+'%';
+      let txt=await entries[fi].async('string');
+      for(let line of txt.split(/\r?\n/)){
+        if(!line)continue;let a=csvFirst4(line);if(a.length<4)continue;
+        let pc=normalisePC(a[0]),e=Number(a[2]),n=Number(a[3]);
+        if(!pc||!Number.isFinite(e)||!Number.isFinite(n)||e<=0||n<=0)continue;
+        let oc=outcodeFromCompact(pc),id=outId.get(oc);
+        if(id===undefined){id=outcodes.length;outId.set(oc,id);outcodes.push(oc)}
+        es.push(e|0);ns.push(n|0);oids.push(id);pcMap.set(pc,valid);valid++;
+      }
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    await saveProcessedDataset(es,ns,oids,outcodes,pcMap,entries.length,'OS Code-Point Open automatic download');
+  }catch(err){
+    console.error('Automatic postcode setup failed',err);
+    $('progressWrap').classList.add('hidden');
+    setDataUI(false,'Automatic postcode setup could not complete. Tap Postcode data and use Download postcode data to retry, or use the manual fallback.');
+  }finally{autoDataBusy=false;if($('autoData'))$('autoData').disabled=false}
+}
 async function importFolder(files){files=[...files].filter(f=>f.name.toLowerCase().endsWith('.csv'));if(!files.length){alert('No CSV files were found. Select the extracted Code-Point Open folder or all CSV files in Data/CSV.');return}$('progressWrap').classList.remove('hidden');$('folder').disabled=true;let es=[],ns=[],oids=[],outcodes=[],outId=new Map(),pcMap=new Map(),valid=0,totalBytes=files.reduce((a,f)=>a+f.size,0),doneBytes=0;for(let fi=0;fi<files.length;fi++){let f=files[fi];$('progressText').textContent=`Reading ${f.name} (${fi+1} of ${files.length})…`;let text=await f.text();for(let line of text.split(/\r?\n/)){if(!line)continue;let a=csvFirst4(line);if(a.length<4)continue;let pc=normalisePC(a[0]),e=Number(a[2]),n=Number(a[3]);if(!pc||!Number.isFinite(e)||!Number.isFinite(n)||e<=0||n<=0)continue;let oc=outcodeFromCompact(pc),id=outId.get(oc);if(id===undefined){id=outcodes.length;outId.set(oc,id);outcodes.push(oc)}es.push(e|0);ns.push(n|0);oids.push(id);pcMap.set(pc,valid);valid++}doneBytes+=f.size;$('bar').style.width=(100*doneBytes/totalBytes).toFixed(1)+'%';await new Promise(r=>setTimeout(r,0))}if(valid<100000){$('folder').disabled=false;$('dataStatus').className='status err';$('dataStatus').textContent=`Only ${valid.toLocaleString()} valid rows found. That does not look like the full national dataset.`;return}let E=Int32Array.from(es),N=Int32Array.from(ns),O=Uint16Array.from(oids),payload={e:E.buffer,n:N.buffer,o:O.buffer,outcodes,pcMap},meta={points:valid,outcodes:outcodes.length,files:files.length,imported:Date.now()};$('progressText').textContent='Saving local dataset…';await dbPut('payload',payload);await dbPut('meta',meta);dataset={meta,e:E,n:N,o:O,outcodes,pcMap};$('folder').disabled=false;$('progressWrap').classList.add('hidden');setDataUI(true,`${valid.toLocaleString()} postcode points · ${outcodes.length.toLocaleString()} outward codes · imported today`)}
 $('folder').addEventListener('change',e=>importFolder(e.target.files).catch(err=>{console.error(err);$('folder').disabled=false;$('dataStatus').className='status err';$('dataStatus').textContent='The dataset could not be processed: '+err.message}));
+if($('autoData'))$('autoData').onclick=()=>autoInstallPostcodeData();
 $('toggleSetup').onclick=()=>$('dataSetup').classList.toggle('hidden');
 $('replaceData').onclick=()=>{$('needData').classList.remove('hidden');$('loadedActions').classList.add('hidden');$('folder').value='';$('dataSetup').classList.remove('hidden')};
 $('clearData').onclick=async()=>{if(!confirm('Clear the locally stored postcode dataset from this browser?'))return;await dbClear();dataset=null;results=[];$('results').classList.add('hidden');setDataUI(false,'Local postcode data cleared.')};
@@ -1200,6 +1272,6 @@ $('installApp').onclick=async()=>{if(!deferredInstallPrompt)return;deferredInsta
 window.addEventListener('appinstalled',()=>{$('installApp').classList.add('hidden')});
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
 
-loadEngineers();restore();
+loadEngineers();restore().then(ok=>{if(!ok)setTimeout(autoInstallPostcodeData,450)});
 </script>
 </body></html>
