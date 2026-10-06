@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.6</title>
+<title>Able Coverage Planner v12</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -538,6 +538,17 @@ a{color:#0f73ad}
 .mapControls{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-direction:column;gap:6px}
 .mapControls button{width:38px;height:38px;min-height:38px;padding:0;border-radius:8px;background:#fff!important;color:#0f73ad!important;border:1px solid #cbd8e3!important;box-shadow:0 3px 10px rgba(25,67,95,.14);font-size:22px;font-weight:800;line-height:1}
 .mapControls button:hover{background:#f3f8fb!important}
+
+.validationStrip{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:0 0 14px;padding:12px 14px;border:1px solid #d5e3ec;border-left:4px solid #2d9b63;border-radius:10px;background:#f6fbf8}
+.validationStrip.edge{border-left-color:#c6922a;background:#fffaf0}
+.validationTitle{font-weight:850;color:#173247;font-size:13px}
+.validationText{font-size:12px;color:#61788a;line-height:1.5;margin-top:3px}
+.validationBadge{flex:0 0 auto;font-size:11px;font-weight:850;padding:6px 9px;border-radius:999px;background:#eaf7f0;color:#25724d;border:1px solid #b9dac8}
+.validationStrip.edge .validationBadge{background:#fff4d9;color:#8b681b;border-color:#e3cd98}
+.jobMapWrap{position:relative}
+.jobOverlay{position:absolute;inset:0;z-index:1;pointer-events:none}
+.jobOverlay svg{width:100%;height:100%;display:block}
+.jobLegend{position:absolute;right:12px;bottom:12px;z-index:2;background:rgba(255,255,255,.96);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:11px;color:#486579;line-height:1.5}
 </style>
 </head>
 <body>
@@ -547,7 +558,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.6</span></div>
+        <div class="title">Coverage Planner <span class="version">v12</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -603,6 +614,10 @@ a{color:#0f73ad}
   <div class="heroItem"><div class="heroLabel">Outward codes</div><div id="heroCodes" class="heroValue">—</div></div>
   <div class="heroItem"><div class="heroLabel">Mode</div><div id="heroMode" class="heroValue">—</div></div>
 </div>
+<div id="coverageValidation" class="validationStrip">
+  <div><div id="validationTitle" class="validationTitle">Result validation</div><div id="validationText" class="validationText">Run a search to see how these results were verified.</div></div>
+  <div id="validationBadge" class="validationBadge">READY</div>
+</div>
 <div class="split">
   <div><div id="groups" class="groups"></div></div>
   <div>
@@ -654,7 +669,7 @@ a{color:#0f73ad}
 <div id="jobResults" class="card hidden">
   <div class="row between"><div><div class="sectionTitle">Job coverage result</div><div id="jobHeading" class="small"></div></div><div id="coverCount" class="badge"></div></div>
   <div id="jobCallout"></div>
-  <div class="split"><div id="jobCards"></div><div><div class="canvasWrap"><div id="jobMap" class="mapPane"></div></div><div class="small" style="margin-top:7px">Live map centred on the job postcode for geographic reference.</div></div></div>
+  <div class="split"><div id="jobCards"></div><div><div class="canvasWrap jobMapWrap"><div id="jobMap" class="mapPane"></div></div><div id="jobMapNote" class="mapNote"><b>Job map:</b> centred on the job postcode. Engineer bases are plotted relative to it.</div></div></div>
 </div>
 </section>
 
@@ -787,7 +802,7 @@ function drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles){
   let c=mercatorWorld(centerLat,centerLon,zoom);
   let mpp=156543.03392*Math.cos(centerLat*Math.PI/180)/Math.pow(2,zoom);
   let radiusPx=(radiusMiles*1609.344)/mpp;
-  let maxMarkers=70;
+  let maxMarkers=40;
   let source=results.length>maxMarkers?results.slice(0,maxMarkers):results;
   let circles='',labels='';
   for(let i=0;i<source.length;i++){
@@ -797,7 +812,7 @@ function drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles){
     let edge=coverageMode==='driving'&&r.confidence==='edge';
     let colour=edge?'#c6922a':'#2d9b63';
     circles+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.5" fill="'+colour+'" stroke="#fff" stroke-width="1.5" opacity=".92"/>';
-    if(i<18)labels+='<text x="'+(x+7).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+r.code+'</text>';
+    if(i<12)labels+='<text x="'+(x+7).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+r.code+'</text>';
   }
   let ring=Math.min(radiusPx,Math.max(w,h)*1.2);
   host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
@@ -826,17 +841,54 @@ function renderPlot(ce,cn,rm,start){
   if($('heroMiles'))$('heroMiles').textContent=miles.toFixed(0)+' mi';
   if($('heroCodes'))$('heroCodes').textContent=results.length.toLocaleString();
   if($('heroMode'))$('heroMode').textContent=coverageMode==='driving'?'Driving':'Straight-line';
-  $('plotNote').innerHTML='<b>Coverage overlay:</b> use the + / − buttons on the map so the map and postcode markers stay synchronised. Dashed blue circle = selected mileage; green/amber dots = qualifying outward-code points.';
+  if($('coverageValidation')){
+    if(coverageMode==='driving'){
+      let edgeCount=results.filter(r=>r.confidence==='edge').length;
+      let confirmed=results.length-edgeCount;
+      $('coverageValidation').className='validationStrip'+(edgeCount?' edge':'');
+      $('validationTitle').textContent=edgeCount?'Driving results include edge cases':'Driving results confirmed';
+      $('validationText').textContent=confirmed+' confirmed outward code'+(confirmed===1?'':'s')+(edgeCount?' · '+edgeCount+' within 2 miles of the selected limit and worth checking manually.':'')+' Each district was road-tested using up to five nearby postcode points.';
+      $('validationBadge').textContent=edgeCount?edgeCount+' EDGE':'CONFIRMED';
+    }else{
+      $('coverageValidation').className='validationStrip';
+      $('validationTitle').textContent='Straight-line scan verified';
+      $('validationText').textContent='Every loaded postcode point was checked against the selected radius. An outward code is included when at least one of its postcode points falls inside the circle.';
+      $('validationBadge').textContent='EXACT SCAN';
+    }
+  }
+  $('plotNote').innerHTML='<b>Coverage overlay:</b> use the + / − buttons on the map so the map and postcode markers stay synchronised. Dashed blue circle = selected mileage; green/amber dots = qualifying outward-code points. To keep the view readable, the map plots up to 40 of the nearest results.';
   lastCoverageOverlay={lat:ll.lat,lon:ll.lon,zoom,miles,start};setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,zoom,miles),450);
 }
 let lastCoverageOverlay=null;
 function redrawCoverageOverlay(){if(lastCoverageOverlay)drawCoverageOverlay(lastCoverageOverlay.lat,lastCoverageOverlay.lon,lastCoverageOverlay.zoom,lastCoverageOverlay.miles)}
 window.addEventListener('resize',()=>{clearTimeout(window.__coverageResize);window.__coverageResize=setTimeout(redrawCoverageOverlay,180)});
+function drawJobOverlay(jobLat,jobLon,zoom,checked){
+  let host=$('jobOverlay');if(!host)return;
+  let rect=host.getBoundingClientRect(),w=rect.width,h=rect.height;
+  if(w<10||h<10){setTimeout(()=>drawJobOverlay(jobLat,jobLon,zoom,checked),120);return}
+  let c=mercatorWorld(jobLat,jobLon,zoom),dots='',labels='';
+  checked.slice(0,25).forEach((x,i)=>{
+    let ll=enToWgs84(x.e,x.n),p=mercatorWorld(ll.lat,ll.lon,zoom);
+    let px=w/2+(p.x-c.x),py=h/2+(p.y-c.y);
+    if(px<-30||px>w+30||py<-30||py>h+30)return;
+    let col=x.covers?'#2d9b63':'#cc5d5d';
+    dots+='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="6" fill="'+col+'" stroke="#fff" stroke-width="2"/>';
+    if(i<10)labels+='<text x="'+(px+9).toFixed(1)+'" y="'+(py-7).toFixed(1)+'" font-size="10" font-family="system-ui" font-weight="700" fill="#27465e" stroke="#fff" stroke-width="3" paint-order="stroke">'+escapeHtml(x.name)+'</text>';
+  });
+  host.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+dots+'<circle cx="'+(w/2)+'" cy="'+(h/2)+'" r="8" fill="#1488c9" stroke="#fff" stroke-width="3"/>'+labels+'</svg>';
+}
 function renderJobPlot(je,jn,checked,pc){
   let ll=enToWgs84(je,jn);
-  let maxRadius=Math.max(5,...checked.map(x=>Number(x.radius)||0));
-  let zoom=mapZoomForMiles(maxRadius);
-  $('jobMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,zoom,'<b>'+displayPC(pc)+'</b><br>Job location · '+checked.length+' saved coverage area'+(checked.length===1?'':'s'));
+  let farthest=Math.max(5,...checked.map(x=>x.d||0),...checked.map(x=>Number(x.radius)||0));
+  let zoom=mapZoomForMiles(farthest);
+  let q=encodeURIComponent(ll.lat+','+ll.lon);
+  let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
+  $('jobMap').innerHTML='<div class="mapBadge"><b>'+displayPC(pc)+'</b><br>'+checked.length+' saved coverage area'+(checked.length===1?'':'s')+'</div><iframe title="Job map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe><div id="jobOverlay" class="jobOverlay"></div><div class="jobLegend"><div class="legendRow"><span class="legendDot blue"></span>Job</div><div class="legendRow"><span class="legendDot green"></span>Covers job</div><div class="legendRow"><span class="legendDot" style="background:#cc5d5d"></span>Outside radius</div></div>';
+  setTimeout(()=>drawJobOverlay(ll.lat,ll.lon,zoom,checked),450);
+  if($('jobMapNote')){
+    let covers=checked.filter(x=>x.covers).length;
+    $('jobMapNote').innerHTML='<b>Job map:</b> '+covers+' of '+checked.length+' saved coverage area'+(checked.length===1?'':'s')+' currently '+(covers===1?'covers':'cover')+' this job in '+(jobMode==='driving'?'driving':'straight-line')+' mode.';
+  }
 }
 
 $('coverageStraight').onclick=()=>{coverageMode='straight';$('coverageStraight').classList.add('active');$('coverageDriving').classList.remove('active');$('coverageModeNote').innerHTML='<b>Straight-line:</b> exact against every loaded postcode point. If any postcode in an outward code is inside the circle, that outward code is included.';$('results').classList.add('hidden')};$('coverageDriving').onclick=()=>{coverageMode='driving';$('coverageDriving').classList.add('active');$('coverageStraight').classList.remove('active');$('coverageModeNote').innerHTML='<b>Driving distance:</b> the app pre-filters by straight-line distance, then road-checks up to <b>five nearby postcode points per outward code</b>. The shortest real road route is used. Results within 2 miles of your limit are marked as edge cases. Internet is required.';$('results').classList.add('hidden')};$('go').onclick=searchCoverage;$('postcode').addEventListener('keydown',e=>{if(e.key==='Enter')searchCoverage()});$('copy').onclick=async()=>{let t=results.map(r=>r.code).join(', ');try{await navigator.clipboard.writeText(t);$('searchStatus').textContent='Outward codes copied to clipboard.'}catch{prompt('Copy these codes:',t)}};$('csv').onclick=()=>{let rows=coverageMode==='driving'?['outward_code,driving_miles,nearest_straight_line_miles,approx_drive_minutes,qualifying_postcode,points_tested,confidence',...results.map(r=>`${r.code},${r.driveMiles.toFixed(3)},${r.d.toFixed(3)},${r.driveMinutes==null?'':r.driveMinutes.toFixed(1)},${(r.qualifyingPostcode||'').replace(/,/g,' ')},${r.pointsTested||0},${r.confidence||''}`)]:['outward_code,nearest_postcode_point_miles,postcode_points_inside_radius',...results.map(r=>`${r.code},${r.d.toFixed(3)},${r.count}`)],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=coverageMode==='driving'?'able-driving-coverage.csv':'able-postcode-coverage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
@@ -856,38 +908,13 @@ async function checkJob(){
 if(!dataset||!engineers.length)return;let pc=normalisePC($('jobPostcode').value),jidx=dataset.pcMap.get(pc);if(jidx===undefined){$('jobStatus').className='status err';$('jobStatus').textContent=`${displayPC(pc)} was not found in the postcode dataset.`;$('jobResults').classList.add('hidden');return}
 let je=dataset.e[jidx],jn=dataset.n[jidx],checked=[];for(let e of engineers){let idx=dataset.pcMap.get(e.postcode);if(idx===undefined)continue;let d=milesBetween(dataset.e[idx],dataset.n[idx],je,jn);checked.push({...e,d,straightCovers:d<=e.radius,e:dataset.e[idx],n:dataset.n[idx],margin:e.radius-d,driveMiles:null,driveMinutes:null,routeError:false})}
 if(jobMode==='driving'){$('checkJob').disabled=true;$('jobStatus').className='status';$('jobStatus').textContent=`Calculating driving routes for ${checked.length} saved area${checked.length===1?'':'s'}…`;for(let i=0;i<checked.length;i++){try{let q=await drivingRoute(checked[i].e,checked[i].n,je,jn);checked[i].driveMiles=q.miles;checked[i].driveMinutes=q.minutes}catch(err){checked[i].routeError=true}if(i<checked.length-1)await new Promise(r=>setTimeout(r,1100))}$('checkJob').disabled=false}
-for(let x of checked){let used=jobMode==='driving'&&x.driveMiles!=null?x.driveMiles:x.d;x.usedDistance=used;x.covers=used<=x.radius;x.usedMargin=x.radius-used}
+for(let x of checked){let used=jobMode==='driving'&&x.driveMiles!=null?x.driveMiles:x.d;x.usedDistance=used;x.covers=used<=x.radius;x.usedMargin=x.radius-used;x.edge=Math.abs(used-x.radius)<=2}
 checked.sort((a,b)=>(b.covers-a.covers)||a.usedDistance-b.usedDistance);let covered=checked.filter(x=>x.covers),nearest=checked[0],routeFails=checked.filter(x=>x.routeError).length;
 $('jobStatus').className='status '+(routeFails&&jobMode==='driving'?'warn':'ok');$('jobStatus').textContent=jobMode==='driving'?`Driving check complete for ${displayPC(pc)}.${routeFails?` ${routeFails} route${routeFails===1?'':'s'} could not be fetched and fell back to straight-line distance.`:''}`:`Checked ${displayPC(pc)} against ${checked.length} saved coverage area${checked.length===1?'':'s'}.`;
 $('jobResults').classList.remove('hidden');$('jobHeading').textContent=`${displayPC(pc)} · ${outcodeFromCompact(pc)} · ${jobMode==='driving'?'driving distance':'straight-line'}`;$('coverCount').textContent=`${covered.length} cover${covered.length===1?'s':''} this job`;
 if(covered.length){let best=covered.slice().sort((a,b)=>a.usedDistance-b.usedDistance)[0],detail=jobMode==='driving'&&best.driveMiles!=null?`${best.driveMiles.toFixed(1)} driving miles · about ${Math.round(best.driveMinutes)} min`:`${best.d.toFixed(1)} straight-line miles`;$('jobCallout').innerHTML=`<div class="callout"><b>Best match: ${escapeHtml(best.name)}</b><br>${detail}, inside their ${best.radius}-mile coverage by ${best.usedMargin.toFixed(1)} miles.</div>`}else{$('jobCallout').innerHTML=`<div class="status warn"><b>No saved coverage area reaches this job in ${jobMode==='driving'?'driving':'straight-line'} mode.</b>${nearest?` Nearest is ${escapeHtml(nearest.name)} at ${nearest.usedDistance.toFixed(1)} miles, ${(nearest.usedDistance-nearest.radius).toFixed(1)} miles outside their saved radius.`:''}</div>`}
-$('jobCards').innerHTML=checked.map((x,i)=>{let primary=jobMode==='driving'&&x.driveMiles!=null?`${x.driveMiles.toFixed(1)} mi`:`${x.d.toFixed(1)} mi`,route=jobMode==='driving'?(x.driveMiles!=null?`<div class="routeMeta">${x.d.toFixed(1)} mi straight-line · approx ${Math.round(x.driveMinutes)} min driving</div>`:`<div class="routeWarn">Driving route unavailable — straight-line fallback used.</div>`):'';return `<div class="resultCard"><div class="resultTop"><div><div class="rank">${x.covers?'Covers job':'Outside radius'}${i===0?' · nearest':''}</div><div class="bigName">${escapeHtml(x.name)}</div><div class="engMeta">${displayPC(x.postcode)} · ${x.radius}-mile limit</div>${route}</div><div style="text-align:right"><div class="distance">${primary}</div><span class="pill ${x.covers?'coverYes':(x.usedDistance-x.radius<=5?'coverNear':'coverNo')}">${x.covers?`${x.usedMargin.toFixed(1)} mi inside`:`${(x.usedDistance-x.radius).toFixed(1)} mi outside`}</span></div></div></div>`}).join('');renderJobPlot(je,jn,checked,pc)}
-function renderJobPlot(je,jn,checked,pc){
-  let map=ensureJobMap();
-  if(!map)return;
-  jobLayer.clearLayers();
-  let center=enToLatLng(je,jn),markers=[];
-  let jm=L.circleMarker(center,{radius:9,color:'#0f73ad',weight:3,fillColor:'#fff',fillOpacity:1})
-    .bindPopup('<b>'+displayPC(pc)+'</b><br>Job postcode').addTo(jobLayer);
-  markers.push(jm);
-  checked.forEach(x=>{
-    let ll=enToLatLng(x.e,x.n);
-    let popup='<b>'+escapeHtml(x.name)+'</b><br>Base: '+displayPC(x.postcode)+'<br>'+
-      (jobMode==='driving'&&x.driveMiles!=null
-        ? 'Driving distance: '+x.driveMiles.toFixed(1)+' mi<br>Approx time: '+Math.round(x.driveMinutes)+' min<br>Straight-line: '+x.d.toFixed(1)+' mi'
-        : 'Straight-line distance: '+x.d.toFixed(1)+' mi')+
-      '<br>Saved radius: '+x.radius+' mi';
-    let m=L.circleMarker(ll,{radius:7,color:x.covers?'#2d9b63':'#cc5d5d',weight:2,fillColor:x.covers?'#2d9b63':'#cc5d5d',fillOpacity:.9})
-      .bindPopup(popup).addTo(jobLayer);
-    markers.push(m);
-    L.circle(ll,{radius:x.radius*1609.344,color:x.covers?'#2d9b63':'#cc5d5d',weight:1,fillOpacity:.025}).addTo(jobLayer);
-  });
-  setTimeout(()=>{
-    map.invalidateSize();
-    if(markers.length>1)map.fitBounds(L.featureGroup(markers).getBounds().pad(.25));
-    else map.setView(center,10);
-  },100);
-}
+$('jobCards').innerHTML=checked.map((x,i)=>{let primary=jobMode==='driving'&&x.driveMiles!=null?`${x.driveMiles.toFixed(1)} mi`:`${x.d.toFixed(1)} mi`,route=jobMode==='driving'?(x.driveMiles!=null?`<div class="routeMeta">${x.d.toFixed(1)} mi straight-line · approx ${Math.round(x.driveMinutes)} min driving</div>`:`<div class="routeWarn">Driving route unavailable — straight-line fallback used.</div>`):'';return `<div class="resultCard"><div class="resultTop"><div><div class="rank">${x.covers?'Covers job':'Outside radius'}${x.edge?' · EDGE CASE':''}${i===0?' · nearest':''}</div><div class="bigName">${escapeHtml(x.name)}</div><div class="engMeta">${displayPC(x.postcode)} · ${x.radius}-mile limit</div>${route}</div><div style="text-align:right"><div class="distance">${primary}</div><span class="pill ${x.covers?'coverYes':(x.usedDistance-x.radius<=5?'coverNear':'coverNo')}">${x.covers?`${x.usedMargin.toFixed(1)} mi inside`:`${(x.usedDistance-x.radius).toFixed(1)} mi outside`}</span></div></div></div>`}).join('');renderJobPlot(je,jn,checked,pc)}
+
 $('checkJob').onclick=checkJob;$('jobPostcode').addEventListener('keydown',e=>{if(e.key==='Enter')checkJob()});
 
 
