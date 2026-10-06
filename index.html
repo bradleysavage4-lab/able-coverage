@@ -3,15 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.2</title>
+<title>Able Coverage Planner v11.3</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/proj4@2.12.1/dist/proj4.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{--bg:#0b0f14;--panel:#141a22;--panel2:#0f141b;--line:#2a3441;--text:#f3f7fb;--muted:#96a2b1;--accent:#5aa9ff;--good:#4bd27d;--warn:#ffcc66;--bad:#ff7b72;--violet:#b79cff}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#0b0f14,#0d1219 45%,#0b0f14);color:var(--text)}
@@ -505,12 +502,12 @@ a{color:#0f73ad}
 }
 
 
-.mapPane{width:100%;height:520px;border-radius:10px;overflow:hidden;background:#e9f1f6}
-.leaflet-container{width:100%;height:100%;font:inherit;background:#e9f1f6}
-.leaflet-control-attribution{font-size:10px}
-.leaflet-popup-content{font-size:13px;line-height:1.45;color:#183247}
-.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#fff}
+.mapPane{width:100%;height:520px;border-radius:10px;overflow:hidden;background:#e9f1f6;position:relative}
 @media(max-width:640px){.mapPane{height:360px}}
+
+.mapPane iframe{width:100%;height:100%;border:0;display:block}
+.mapBadge{position:absolute;left:12px;top:12px;z-index:2;background:rgba(255,255,255,.95);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:12px;color:#35566d;pointer-events:none}
+.mapBadge b{color:#0f73ad}
 </style>
 </head>
 <body>
@@ -520,7 +517,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.2</span></div>
+        <div class="title">Coverage Planner <span class="version">v11.3</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -570,7 +567,7 @@ a{color:#0f73ad}
 <div id="results" class="card hidden">
   <div class="summary"><div class="metric"><b id="count">0</b><span>outward codes</span></div><div class="metric"><b id="pointsCount">0</b><span id="pointsLabel">postcode points inside radius</span></div><div class="metric"><b id="miles">0</b><span id="distanceLabel">mile radius</span></div><div class="metric"><b id="centre">—</b><span>starting postcode</span></div></div>
   <div class="toolbar"><button class="secondary" id="copy">Copy all codes</button><button class="secondary" id="csv">Export CSV</button></div>
-  <div class="split"><div><div id="groups" class="groups"></div></div><div><div class="canvasWrap"><div id="plotMap" class="mapPane"></div></div><div id="plotNote" class="small" style="margin-top:7px">Interactive map. Circle = selected radius; markers = nearest qualifying point for each outward code.</div></div></div>
+  <div class="split"><div><div id="groups" class="groups"></div></div><div><div class="canvasWrap"><div id="plotMap" class="mapPane"></div></div><div id="plotNote" class="small" style="margin-top:7px">Live map centred on the search postcode for geographic reference.</div></div></div>
   <table><thead><tr><th>Outward code</th><th id="distanceHead">Nearest qualifying point</th><th id="countHead">Postcode points in radius</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 </section>
@@ -606,7 +603,7 @@ a{color:#0f73ad}
 <div id="jobResults" class="card hidden">
   <div class="row between"><div><div class="sectionTitle">Job coverage result</div><div id="jobHeading" class="small"></div></div><div id="coverCount" class="badge"></div></div>
   <div id="jobCallout"></div>
-  <div class="split"><div id="jobCards"></div><div><div class="canvasWrap"><div id="jobMap" class="mapPane"></div></div><div class="small" style="margin-top:7px">Interactive map. Blue marker = job; green/red markers = engineer bases. Saved coverage radii are shown too.</div></div></div>
+  <div class="split"><div id="jobCards"></div><div><div class="canvasWrap"><div id="jobMap" class="mapPane"></div></div><div class="small" style="margin-top:7px">Live map centred on the job postcode for geographic reference.</div></div></div>
 </div>
 </section>
 
@@ -696,78 +693,42 @@ if(coverageMode==='straight'){
   }
   results=routed.filter(r=>r.driveMiles<=radius).sort((a,b)=>a.driveMiles-b.driveMiles||a.code.localeCompare(b.code));
   let pcNames=resolvePostcodesForIndices(results.map(r=>r.pointIdx));for(let r of results)r.qualifyingPostcode=pcNames.get(r.pointIdx)||'postcode point';
-  $('searchStatus').className='status '+(failed?'warn':'ok');$('searchStatus').textContent=`Found ${results.length.toLocaleString()} outward codes within ${radius} driving miles of ${displayPC(pc)} after road-checking ${testedPoints.toLocaleString()} postcode points.${failed?` ${failed} route request${failed===1?'':'s'} could not be returned.`:''}`;$('pointsCount').textContent=testedPoints.toLocaleString();$('pointsLabel').textContent='postcode points road-checked';$('distanceLabel').textContent='driving-mile limit';$('distanceHead').textContent='Best tested driving route';$('countHead').textContent='Why it qualified';$('plotNote').textContent='Map markers show the postcode points used to represent qualifying outward codes. Driving mode still tests up to five nearby postcode points and uses the shortest returned road route.';$('go').disabled=false;
+  $('searchStatus').className='status '+(failed?'warn':'ok');$('searchStatus').textContent=`Found ${results.length.toLocaleString()} outward codes within ${radius} driving miles of ${displayPC(pc)} after road-checking ${testedPoints.toLocaleString()} postcode points.${failed?` ${failed} route request${failed===1?'':'s'} could not be returned.`:''}`;$('pointsCount').textContent=testedPoints.toLocaleString();$('pointsLabel').textContent='postcode points road-checked';$('distanceLabel').textContent='driving-mile limit';$('distanceHead').textContent='Best tested driving route';$('countHead').textContent='Why it qualified';$('plotNote').textContent='The map is a geographic reference. Driving mode still tests up to five nearby postcode points per outward code and uses the shortest returned road route.';$('go').disabled=false;
 }
 $('results').classList.remove('hidden');$('count').textContent=results.length.toLocaleString();$('miles').textContent=radius;$('centre').textContent=displayPC(pc);renderGroups(outcodeFromCompact(pc));renderRows();renderPlot(ce,cn,rm,outcodeFromCompact(pc))}
 function renderGroups(start){let g={};for(let r of results){let area=(r.code.match(/^[A-Z]+/)||['?'])[0];(g[area]??=[]).push(r.code)}$('groups').innerHTML=Object.keys(g).sort().map(a=>`<div class="group"><h3>${a} area · ${g[a].length} outward code${g[a].length===1?'':'s'}</h3><div class="codes">${g[a].map(c=>`<span class="code ${c===start?'start':''}">${c}</span>`).join('')}</div></div>`).join('')}
 function renderRows(){$('rows').innerHTML=results.map(r=>coverageMode==='driving'?`<tr><td><b>${r.code}</b><span class="confidence ${r.confidence==='edge'?'edge':'good'}">${r.confidence==='edge'?'EDGE CASE':'CONFIRMED'}</span></td><td><b>${r.driveMiles.toFixed(2)} mi</b> <span class="muted">(${r.d.toFixed(2)} mi nearest straight)</span><div class="routeMeta">about ${r.driveMinutes==null?'—':Math.round(r.driveMinutes)+' min'} driving</div></td><td><b>${r.qualifyingPostcode||'postcode point'}</b><div class="qualify">shortest of ${r.routeSuccesses||0}/${r.pointsTested||0} tested road routes</div></td></tr>`:`<tr><td><b>${r.code}</b></td><td>${r.d.toFixed(2)} mi</td><td>${r.count.toLocaleString()}</td></tr>`).join('')}
 
-let coverageMap=null,coverageLayer=null,jobMap=null,jobLayer=null,leafletReady=false;
-function initLeaflet(){
-  if(leafletReady)return true;
-  if(typeof L==='undefined'||typeof proj4==='undefined')return false;
-  proj4.defs('EPSG:27700','+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.1502,0.2470,0.8421,-20.4894 +units=m +no_defs');
-  leafletReady=true;
-  return true;
+
+function mapZoomForMiles(miles){
+  miles=Number(miles)||10;
+  if(miles<=3)return 13;
+  if(miles<=5)return 12;
+  if(miles<=10)return 11;
+  if(miles<=20)return 10;
+  if(miles<=35)return 9;
+  if(miles<=60)return 8;
+  return 7;
 }
-function enToLatLng(e,n){
-  if(!initLeaflet())return null;
-  let p=proj4('EPSG:27700','EPSG:4326',[e,n]);
-  return [p[1],p[0]];
-}
-function addBaseTiles(map){
-  let primary=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-    subdomains:'abcd',
-    maxZoom:20,
-    attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
-  });
-  let fallback=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,
-    attribution:'&copy; OpenStreetMap contributors'
-  });
-  let switched=false;
-  primary.on('tileerror',()=>{
-    if(switched)return;
-    switched=true;
-    try{map.removeLayer(primary)}catch(e){}
-    fallback.addTo(map);
-  });
-  primary.addTo(map);
-}
-function ensureCoverageMap(){
-  if(coverageMap)return coverageMap;
-  if(!initLeaflet())return null;
-  coverageMap=L.map('plotMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
-  addBaseTiles(coverageMap);
-  coverageLayer=L.layerGroup().addTo(coverageMap);
-  return coverageMap;
-}
-function ensureJobMap(){
-  if(jobMap)return jobMap;
-  if(!initLeaflet())return null;
-  jobMap=L.map('jobMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
-  addBaseTiles(jobMap);
-  jobLayer=L.layerGroup().addTo(jobMap);
-  return jobMap;
+function mapEmbedHtml(lat,lon,zoom,badge){
+  let q=encodeURIComponent(lat+','+lon);
+  let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
+  return '<div class="mapBadge">'+badge+'</div><iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>';
 }
 function renderPlot(ce,cn,rm,start){
-  let map=ensureCoverageMap();
-  if(!map){$('plotNote').textContent='Map library could not load. Your postcode results are still valid.';return}
-  coverageLayer.clearLayers();
-  let center=enToLatLng(ce,cn);
-  let radiusCircle=L.circle(center,{radius:rm,color:'#1488c9',weight:2,fillColor:'#1488c9',fillOpacity:.08}).addTo(coverageLayer);
-  L.circleMarker(center,{radius:8,color:'#0f73ad',weight:3,fillColor:'#fff',fillOpacity:1})
-    .bindPopup('<b>'+start+'</b><br>Search centre').addTo(coverageLayer);
-  for(let r of results){
-    let ll=enToLatLng(r.e,r.n);
-    let popup=coverageMode==='driving'
-      ? '<b>'+r.code+'</b><br>Best tested driving route: '+r.driveMiles.toFixed(2)+' mi<br>Nearest straight-line point: '+r.d.toFixed(2)+' mi<br>Qualifying postcode: '+(r.qualifyingPostcode||'postcode point')
-      : '<b>'+r.code+'</b><br>Nearest qualifying point: '+r.d.toFixed(2)+' mi<br>Postcode points inside radius: '+r.count.toLocaleString();
-    L.circleMarker(ll,{radius:5,color:coverageMode==='driving'?'#2d9b63':'#1488c9',weight:1,fillColor:coverageMode==='driving'?'#2d9b63':'#1488c9',fillOpacity:.9})
-      .bindPopup(popup).addTo(coverageLayer);
-  }
-  setTimeout(()=>{map.invalidateSize();map.fitBounds(radiusCircle.getBounds().pad(.08));},100);
+  let ll=enToWgs84(ce,cn);
+  let miles=rm/1609.344;
+  let zoom=mapZoomForMiles(miles);
+  $('plotMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,zoom,'<b>'+start+'</b><br>'+miles.toFixed(0)+' mile search · '+results.length+' outward codes');
+  $('plotNote').textContent='Map centred on the starting postcode for geographic reference. Coverage results and distances are shown alongside the map.';
 }
+function renderJobPlot(je,jn,checked,pc){
+  let ll=enToWgs84(je,jn);
+  let maxRadius=Math.max(5,...checked.map(x=>Number(x.radius)||0));
+  let zoom=mapZoomForMiles(maxRadius);
+  $('jobMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,zoom,'<b>'+displayPC(pc)+'</b><br>Job location · '+checked.length+' saved coverage area'+(checked.length===1?'':'s'));
+}
+
 $('coverageStraight').onclick=()=>{coverageMode='straight';$('coverageStraight').classList.add('active');$('coverageDriving').classList.remove('active');$('coverageModeNote').innerHTML='<b>Straight-line:</b> exact against every loaded postcode point. If any postcode in an outward code is inside the circle, that outward code is included.';$('results').classList.add('hidden')};$('coverageDriving').onclick=()=>{coverageMode='driving';$('coverageDriving').classList.add('active');$('coverageStraight').classList.remove('active');$('coverageModeNote').innerHTML='<b>Driving distance:</b> the app pre-filters by straight-line distance, then road-checks up to <b>five nearby postcode points per outward code</b>. The shortest real road route is used. Results within 2 miles of your limit are marked as edge cases. Internet is required.';$('results').classList.add('hidden')};$('go').onclick=searchCoverage;$('postcode').addEventListener('keydown',e=>{if(e.key==='Enter')searchCoverage()});$('copy').onclick=async()=>{let t=results.map(r=>r.code).join(', ');try{await navigator.clipboard.writeText(t);$('searchStatus').textContent='Outward codes copied to clipboard.'}catch{prompt('Copy these codes:',t)}};$('csv').onclick=()=>{let rows=coverageMode==='driving'?['outward_code,driving_miles,nearest_straight_line_miles,approx_drive_minutes,qualifying_postcode,points_tested,confidence',...results.map(r=>`${r.code},${r.driveMiles.toFixed(3)},${r.d.toFixed(3)},${r.driveMinutes==null?'':r.driveMinutes.toFixed(1)},${(r.qualifyingPostcode||'').replace(/,/g,' ')},${r.pointsTested||0},${r.confidence||''}`)]:['outward_code,nearest_postcode_point_miles,postcode_points_inside_radius',...results.map(r=>`${r.code},${r.d.toFixed(3)},${r.count}`)],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=coverageMode==='driving'?'able-driving-coverage.csv':'able-postcode-coverage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 
 $('modeStraight').onclick=()=>{jobMode='straight';$('modeStraight').classList.add('active');$('modeDriving').classList.remove('active');$('jobStatus').className='status';updateJobControls()};
