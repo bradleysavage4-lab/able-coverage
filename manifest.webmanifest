@@ -1,0 +1,11 @@
+{
+  "name":"Able Coverage Planner",
+  "short_name":"Able Coverage",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#0b0f14",
+  "theme_color":"#0b0f14",
+  "description":"Postcode radius and driving-distance coverage planner for Able Group.",
+  "icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
