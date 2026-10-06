@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.3</title>
+<title>Able Coverage Planner v11.4</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -508,6 +508,25 @@ a{color:#0f73ad}
 .mapPane iframe{width:100%;height:100%;border:0;display:block}
 .mapBadge{position:absolute;left:12px;top:12px;z-index:2;background:rgba(255,255,255,.95);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:12px;color:#35566d;pointer-events:none}
 .mapBadge b{color:#0f73ad}
+
+.coverageHero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 12px}
+.coverageHero .heroItem{background:#f8fbfd;border:1px solid #d7e3ec;border-radius:10px;padding:12px 13px}
+.coverageHero .heroLabel{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7b8e9d;font-weight:800}
+.coverageHero .heroValue{font-size:22px;font-weight:850;color:#173247;margin-top:3px}
+.coverageHero .heroValue.blue{color:#0f73ad}
+.mapCard{background:#fff;border:1px solid #d7e1ea;border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(25,67,95,.08)}
+.mapHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.mapHeaderTitle{font-size:14px;font-weight:850;color:#173247}
+.mapHeaderMeta{font-size:12px;color:#6f8292}
+.mapPane{height:560px;border-radius:9px}
+.mapNote{margin-top:9px;padding:9px 10px;background:#f4f9fc;border:1px solid #d5e6f0;border-radius:8px;font-size:12px;color:#567083;line-height:1.45}
+.mapNote b{color:#0f73ad}
+@media(max-width:760px){
+  .coverageHero{grid-template-columns:1fr 1fr}
+  .coverageHero .heroValue{font-size:19px}
+  .mapPane{height:430px}
+  .mapHeader{align-items:flex-start;flex-direction:column}
+}
 </style>
 </head>
 <body>
@@ -517,7 +536,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.3</span></div>
+        <div class="title">Coverage Planner <span class="version">v11.4</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -567,7 +586,28 @@ a{color:#0f73ad}
 <div id="results" class="card hidden">
   <div class="summary"><div class="metric"><b id="count">0</b><span>outward codes</span></div><div class="metric"><b id="pointsCount">0</b><span id="pointsLabel">postcode points inside radius</span></div><div class="metric"><b id="miles">0</b><span id="distanceLabel">mile radius</span></div><div class="metric"><b id="centre">—</b><span>starting postcode</span></div></div>
   <div class="toolbar"><button class="secondary" id="copy">Copy all codes</button><button class="secondary" id="csv">Export CSV</button></div>
-  <div class="split"><div><div id="groups" class="groups"></div></div><div><div class="canvasWrap"><div id="plotMap" class="mapPane"></div></div><div id="plotNote" class="small" style="margin-top:7px">Live map centred on the search postcode for geographic reference.</div></div></div>
+  <div id="coverageHero" class="coverageHero">
+  <div class="heroItem"><div class="heroLabel">Search centre</div><div id="heroCentre" class="heroValue blue">—</div></div>
+  <div class="heroItem"><div class="heroLabel">Mileage</div><div id="heroMiles" class="heroValue">—</div></div>
+  <div class="heroItem"><div class="heroLabel">Outward codes</div><div id="heroCodes" class="heroValue">—</div></div>
+  <div class="heroItem"><div class="heroLabel">Mode</div><div id="heroMode" class="heroValue">—</div></div>
+</div>
+<div class="split">
+  <div><div id="groups" class="groups"></div></div>
+  <div>
+    <div class="mapCard">
+      <div class="mapHeader">
+        <div>
+          <div class="mapHeaderTitle">Geographic reference</div>
+          <div class="mapHeaderMeta">Live map centred on the postcode searched</div>
+        </div>
+        <span class="badge">Map view</span>
+      </div>
+      <div id="plotMap" class="mapPane"></div>
+      <div id="plotNote" class="mapNote"><b>Map reference:</b> search results and coverage calculations are shown alongside this map.</div>
+    </div>
+  </div>
+</div>
   <table><thead><tr><th>Outward code</th><th id="distanceHead">Nearest qualifying point</th><th id="countHead">Postcode points in radius</th></tr></thead><tbody id="rows"></tbody></table>
 </div>
 </section>
@@ -720,7 +760,11 @@ function renderPlot(ce,cn,rm,start){
   let miles=rm/1609.344;
   let zoom=mapZoomForMiles(miles);
   $('plotMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,zoom,'<b>'+start+'</b><br>'+miles.toFixed(0)+' mile search · '+results.length+' outward codes');
-  $('plotNote').textContent='Map centred on the starting postcode for geographic reference. Coverage results and distances are shown alongside the map.';
+  if($('heroCentre'))$('heroCentre').textContent=start;
+  if($('heroMiles'))$('heroMiles').textContent=miles.toFixed(0)+' mi';
+  if($('heroCodes'))$('heroCodes').textContent=results.length.toLocaleString();
+  if($('heroMode'))$('heroMode').textContent=coverageMode==='driving'?'Driving':'Straight-line';
+  $('plotNote').innerHTML='<b>Map reference:</b> centred on '+start+'. The map is for visual orientation; the postcode list and distance calculations remain the authoritative coverage results.';
 }
 function renderJobPlot(je,jn,checked,pc){
   let ll=enToWgs84(je,jn);
