@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v11.5</title>
+<title>Able Coverage Planner v11.6</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -505,7 +505,7 @@ a{color:#0f73ad}
 .mapPane{width:100%;height:520px;border-radius:10px;overflow:hidden;background:#e9f1f6;position:relative}
 @media(max-width:640px){.mapPane{height:360px}}
 
-.mapPane iframe{width:100%;height:100%;border:0;display:block}
+.mapPane iframe{width:100%;height:100%;border:0;display:block;pointer-events:none}
 .mapBadge{position:absolute;left:12px;top:12px;z-index:2;background:rgba(255,255,255,.95);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:12px;color:#35566d;pointer-events:none}
 .mapBadge b{color:#0f73ad}
 
@@ -534,6 +534,10 @@ a{color:#0f73ad}
 .legendRow{display:flex;align-items:center;gap:6px;white-space:nowrap}
 .legendDot{width:9px;height:9px;border-radius:50%;display:inline-block}
 .legendDot.blue{background:#1488c9}.legendDot.green{background:#2d9b63}.legendDot.amber{background:#c6922a}
+
+.mapControls{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-direction:column;gap:6px}
+.mapControls button{width:38px;height:38px;min-height:38px;padding:0;border-radius:8px;background:#fff!important;color:#0f73ad!important;border:1px solid #cbd8e3!important;box-shadow:0 3px 10px rgba(25,67,95,.14);font-size:22px;font-weight:800;line-height:1}
+.mapControls button:hover{background:#f3f8fb!important}
 </style>
 </head>
 <body>
@@ -543,7 +547,7 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v11.5</span></div>
+        <div class="title">Coverage Planner <span class="version">v11.6</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -760,7 +764,11 @@ function mapZoomForMiles(miles){
 function mapEmbedHtml(lat,lon,zoom,badge){
   let q=encodeURIComponent(lat+','+lon);
   let src='https://maps.google.com/maps?q='+q+'&z='+zoom+'&output=embed';
-  return '<div class="mapBadge">'+badge+'</div><iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe><div id="coverageOverlay" class="mapOverlay"></div><div class="mapLegend"><div class="legendRow"><span class="legendDot blue"></span>Search centre</div><div class="legendRow"><span class="legendDot green"></span>Within range</div><div class="legendRow"><span class="legendDot amber"></span>Edge case</div></div>';
+  return '<div class="mapBadge">'+badge+'</div>'+
+    '<iframe title="Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
+    '<div id="coverageOverlay" class="mapOverlay"></div>'+
+    '<div class="mapControls"><button type="button" onclick="coverageMapZoom(1)">+</button><button type="button" onclick="coverageMapZoom(-1)">−</button></div>'+
+    '<div class="mapLegend"><div class="legendRow"><span class="legendDot blue"></span>Search centre</div><div class="legendRow"><span class="legendDot green"></span>Within range</div><div class="legendRow"><span class="legendDot amber"></span>Edge case</div></div>';
 }
 
 function mercatorWorld(lat,lon,zoom){
@@ -799,6 +807,16 @@ function drawCoverageOverlay(centerLat,centerLon,zoom,radiusMiles){
     labels+
     '</svg>';
 }
+
+function coverageMapZoom(delta){
+  if(!lastCoverageOverlay)return;
+  lastCoverageOverlay.zoom=Math.max(5,Math.min(15,lastCoverageOverlay.zoom+delta));
+  let ll=lastCoverageOverlay;
+  let badge='<b>'+ll.start+'</b><br>'+ll.miles.toFixed(0)+' mile search · '+results.length+' outward codes';
+  $('plotMap').innerHTML=mapEmbedHtml(ll.lat,ll.lon,ll.zoom,badge);
+  setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,ll.zoom,ll.miles),450);
+}
+window.coverageMapZoom=coverageMapZoom;
 function renderPlot(ce,cn,rm,start){
   let ll=enToWgs84(ce,cn);
   let miles=rm/1609.344;
@@ -808,8 +826,8 @@ function renderPlot(ce,cn,rm,start){
   if($('heroMiles'))$('heroMiles').textContent=miles.toFixed(0)+' mi';
   if($('heroCodes'))$('heroCodes').textContent=results.length.toLocaleString();
   if($('heroMode'))$('heroMode').textContent=coverageMode==='driving'?'Driving':'Straight-line';
-  $('plotNote').innerHTML='<b>Coverage overlay:</b> dashed blue circle = selected mileage. Dots show qualifying outward-code points; driving edge cases are amber. The postcode list and calculated distances remain the authoritative results.';
-  lastCoverageOverlay={lat:ll.lat,lon:ll.lon,zoom,miles};setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,zoom,miles),450);
+  $('plotNote').innerHTML='<b>Coverage overlay:</b> use the + / − buttons on the map so the map and postcode markers stay synchronised. Dashed blue circle = selected mileage; green/amber dots = qualifying outward-code points.';
+  lastCoverageOverlay={lat:ll.lat,lon:ll.lon,zoom,miles,start};setTimeout(()=>drawCoverageOverlay(ll.lat,ll.lon,zoom,miles),450);
 }
 let lastCoverageOverlay=null;
 function redrawCoverageOverlay(){if(lastCoverageOverlay)drawCoverageOverlay(lastCoverageOverlay.lat,lastCoverageOverlay.lon,lastCoverageOverlay.zoom,lastCoverageOverlay.miles)}
