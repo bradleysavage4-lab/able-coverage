@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v12.1</title>
+<title>Able Coverage Planner v13</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -549,6 +549,110 @@ a{color:#0f73ad}
 .jobOverlay{position:absolute;inset:0;z-index:1;pointer-events:none}
 .jobOverlay svg{width:100%;height:100%;display:block}
 .jobLegend{position:absolute;right:12px;bottom:12px;z-index:2;background:rgba(255,255,255,.96);border:1px solid #d7e1ea;border-radius:9px;padding:8px 10px;box-shadow:0 3px 12px rgba(25,67,95,.12);font-size:11px;color:#486579;line-height:1.5}
+
+/* v13 professional UI refresh */
+:root{
+  --bg:#f4f7fa;
+  --panel:#ffffff;
+  --panel2:#fbfcfd;
+  --line:#d8e0e8;
+  --text:#163247;
+  --muted:#6f8191;
+  --accent:#157fbe;
+  --good:#2d8f59;
+  --warn:#b88317;
+  --bad:#c05555;
+  --violet:#7d94b8;
+}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1240px;padding:24px 22px 56px}
+.brand{font-size:11px;letter-spacing:.14em;color:#5f7f96;font-weight:800}
+.title{font-size:34px;line-height:1.08;margin:4px 0 4px;color:#0f2738}
+.sub{color:#678091;font-size:14px;max-width:760px;margin-bottom:14px}
+.version{color:#59758a;background:#eef3f7;border:1px solid #d8e1e8;border-radius:999px;padding:3px 8px;font-weight:700}
+.tabs{gap:20px;margin:18px 0 14px;padding:0;border-bottom:1px solid #d8e0e8;background:transparent}
+.tab{background:transparent;border:none;border-bottom:3px solid transparent;border-radius:0;padding:12px 2px;color:#6e8090;font-weight:800}
+.tab.active{background:transparent!important;color:#0f2738!important;border-color:var(--accent)!important}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 18px 16px;margin:12px 0;box-shadow:0 1px 2px rgba(14,36,54,.03),0 8px 24px rgba(14,36,54,.04)}
+.compact{padding:13px 15px}
+.sectionTitle{font-size:18px;font-weight:800;margin:0 0 4px;color:#143147}
+.small,.muted,label,.engMeta,.rank,.routeMeta,.qualify{color:var(--muted)}
+.grid,.two,.split{gap:16px}
+input,select,button{border-radius:6px;padding:12px 13px}
+input,select{background:#fff;color:var(--text);border:1px solid #cfd8e1}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(21,127,190,.10)}
+button{background:var(--accent);color:#fff;border:1px solid var(--accent);font-weight:700;box-shadow:none;transition:background .15s ease,border-color .15s ease,color .15s ease}
+button:hover{transform:none;background:#0f71aa;border-color:#0f71aa}
+.secondary{background:#eef3f7;color:#143147;border-color:#d4dde5}
+.secondary:hover{background:#e7eef4}
+.ghost{background:#fff;color:#5e7385;border-color:#d1dbe4}
+.ghost:hover{background:#f8fafb}
+.danger{background:#fff5f5;color:#9e3e3e;border-color:#e3b6b6}
+.goodbtn{background:#2d8f59;border-color:#2d8f59;color:#fff}
+.status{margin-top:12px;padding:11px 12px;border-radius:6px;background:#f8fafc;border:1px solid #d8e1e8;color:#5f778a}
+.ok{background:#f3fbf7;color:#286847;border-color:#c7dfd0}
+.warn{background:#fff8eb;color:#936812;border-color:#ead9ae}
+.err{background:#fff5f5;color:#ab4a4a;border-color:#e7c0c0}
+.mobileInstall{position:static;box-shadow:none}
+.badge,.pill{background:#f7f9fb;color:#5f7485;border:1px solid #d8e1e8;border-radius:999px;padding:5px 8px}
+.dot{background:#b88317}.dot.good{background:#2d8f59}
+.summary{grid-template-columns:repeat(4,minmax(120px,1fr));gap:12px}
+.metric{background:#fff;border:1px solid #dde5ec;border-radius:8px;padding:13px 14px}
+.metric b{font-size:24px;color:#0f2738}
+.metric span{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#728698}
+.toolbar{gap:8px;margin:14px 0}
+.group{margin:14px 0}
+.group h3{font-size:12px;font-weight:800;color:#61788a;text-transform:uppercase;letter-spacing:.05em}
+.codes{gap:6px}
+.code{font-weight:700;padding:6px 9px;border-radius:6px;border:1px solid #d6dfe7;background:#fff;color:#163247}
+.code.start{border-color:#6ab98c;box-shadow:none;background:#f2fbf6}
+table{margin-top:10px;font-size:13px;background:#fff;border:1px solid #e0e6ec;border-radius:8px;overflow:hidden}
+th,td{padding:11px 12px;border-bottom:1px solid #e7edf2}
+th{background:#f7fafc;color:#678091;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+tr:hover td{background:#fafcfd}
+.canvasWrap,.mapCard{margin-top:10px;background:#fff;border:1px solid #dde5ec;border-radius:8px;padding:8px;box-shadow:none}
+.mapPane{border-radius:6px;background:#edf2f6}
+.filebox{border:1px dashed #b7c5d1;border-radius:8px;padding:14px;background:#fbfcfd}
+.help{font-size:12px;color:#708394}
+a{color:#126ea6}
+.notice{padding:9px 11px;border-left:3px solid var(--accent);background:#f6fbfe;border-radius:6px;color:#51697c;font-size:12px}
+.progress{height:8px;background:#edf2f6;border:1px solid #dbe3ea}
+.bar{background:#157fbe}
+.engineerList{gap:8px}
+.engineer{grid-template-columns:1.2fr .8fr .55fr auto;gap:10px;background:#fff;border:1px solid #dde5ec;padding:11px 12px;border-radius:8px}
+.engName{font-weight:800;color:#163247}
+.coverYes{color:#2d8f59;border-color:#bcdcc9;background:#f2fbf6}
+.coverNo{color:#b04a4a;border-color:#e7c0c0;background:#fff5f5}
+.coverNear{color:#9b7415;border-color:#ecd9a6;background:#fff8eb}
+.resultCard{background:#fff;border:1px solid #dde5ec;border-radius:8px;padding:13px;margin:10px 0}
+.bigName{font-size:18px;font-weight:800;color:#163247}
+.distance{font-size:22px;font-weight:800;color:#0f2738}
+.callout{border-left:3px solid #2d8f59;padding:10px 12px;background:#f3fbf7;border-radius:6px;margin:10px 0;color:#355a48}
+.empty{padding:18px;color:#6e8090;border:1px dashed #cdd6df;border-radius:8px;background:#fbfcfd}
+.setupToggle{font-size:12px;padding:8px 10px}
+.modeChoice{border:1px solid #d5dee6;background:#fff;padding:11px;border-radius:6px;color:#5d7385}
+.modeChoice.active{border-color:#157fbe;box-shadow:inset 0 0 0 1px #157fbe;background:#f6fbfe;color:#163247}
+.routeWarn{margin-top:10px;padding:10px 12px;border:1px solid #ead9ae;background:#fff8eb;border-radius:6px;color:#9a7316}
+.confidence{border-radius:999px;padding:4px 8px;font-size:10px;margin-left:6px}
+.confidence.good{color:#2d8f59;border:1px solid #bcdcc9;background:#f2fbf6}
+.confidence.edge{color:#9b7415;border:1px solid #ecd9a6;background:#fff8eb}
+.coverageHero{gap:8px}
+.coverageHero .heroItem{background:#fff;border:1px solid #dde5ec;border-radius:8px}
+.validationStrip{border-radius:8px;background:#fbfcfd}
+.mapBadge,.mapLegend,.jobLegend{border-radius:6px;box-shadow:0 2px 8px rgba(14,36,54,.08)}
+@media(max-width:640px){
+  body{font-size:15px}
+  .wrap{padding:14px 12px 34px}
+  .title{font-size:27px}
+  .card{padding:14px}
+  .tabs{position:sticky;top:0;z-index:20;background:#f4f7fa;padding-top:6px}
+  .tab{flex:1;text-align:center;padding:12px 4px}
+  input,select,button{font-size:15px;min-height:44px}
+  .split{display:block}
+  .canvasWrap,.mapCard{margin-top:14px}
+  .engineer{grid-template-columns:1fr}
+  .summary{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -558,14 +662,14 @@ a{color:#0f73ad}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v12.1</span></div>
+        <div class="title">Coverage Planner <span class="version">v13</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
     <div class="headerStatus">
       <span class="statusDot"></span>
       <div><b>Service status</b><div id="onlineState" class="small">Checking connection…</div></div>
-      <button id="installApp" class="secondary hidden">Install app</button>
+      <button id="installApp" class="secondary hidden">Install</button>
     </div>
   </header>
 
