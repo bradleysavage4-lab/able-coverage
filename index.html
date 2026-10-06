@@ -301,6 +301,206 @@ tr:hover td{background:#131f2b}
   .modeChoice{font-size:12px}
 }
 
+
+/* v10 Able blue + white branded overhaul */
+:root{
+  --bg:#eef4f8;
+  --panel:#ffffff;
+  --panel2:#f7fafc;
+  --line:#d7e1ea;
+  --text:#183247;
+  --muted:#6f8292;
+  --accent:#1488c9;
+  --accent2:#0f73ad;
+  --good:#2d9b63;
+  --warn:#c6922a;
+  --bad:#cc5d5d;
+  --shadow:0 8px 24px rgba(25,67,95,.09)
+}
+body{
+  background:#eef4f8;
+  color:var(--text);
+}
+.wrap{max-width:1180px;padding:0 20px 72px}
+.appHeader{
+  margin:0 -20px 20px;
+  padding:20px;
+  background:linear-gradient(135deg,#0f73ad 0%,#1488c9 58%,#2b9bd2 100%);
+  border-bottom:0;
+  box-shadow:0 7px 20px rgba(20,136,201,.18);
+  color:#fff
+}
+.headerIdentity{align-items:center}
+.brandMark{
+  width:64px;height:64px;
+  background:#fff;border:0;
+  box-shadow:0 4px 14px rgba(0,0,0,.12)
+}
+.brand{color:rgba(255,255,255,.78)}
+.title{color:#fff;font-size:34px;font-weight:760}
+.version{
+  color:#fff;
+  background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.34)
+}
+.sub{color:rgba(255,255,255,.86)}
+.headerStatus{
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.24);
+  color:#fff
+}
+.headerStatus b{color:#fff}
+.headerStatus .small{color:rgba(255,255,255,.82)!important}
+.statusDot{background:#84e2b1;box-shadow:0 0 0 3px rgba(132,226,177,.18)}
+.card{
+  background:#fff;
+  border:1px solid #d7e1ea;
+  border-radius:12px;
+  box-shadow:var(--shadow)
+}
+.card.compact{background:#fff}
+.tabs{
+  background:#fff;
+  border-bottom:1px solid #d4dee7;
+  margin:0 0 20px;
+  padding:0 4px
+}
+.tab{color:#718395}
+.tab:hover{color:#23506d}
+.tab.active{color:#0f73ad!important}
+.tab.active:after{background:#1488c9;height:3px}
+.eyebrow{color:#1488c9}
+.sectionTitle{color:#173247}
+.small,.muted{color:#708394}
+label{color:#516879}
+input,select{
+  background:#fff;
+  color:#183247;
+  border:1px solid #cbd8e3
+}
+input::placeholder{color:#99a8b5}
+input:focus,select:focus{
+  border-color:#1488c9;
+  box-shadow:0 0 0 3px rgba(20,136,201,.10)
+}
+button{font-weight:700}
+button:not(.tab):not(.ghost):not(.secondary):not(.danger):not(.goodbtn){
+  background:#1488c9;color:#fff
+}
+button:not(.tab):not(.ghost):not(.secondary):not(.danger):not(.goodbtn):hover{background:#0f73ad}
+.secondary{
+  background:#f2f6f9;
+  border:1px solid #cbd8e3;
+  color:#27465e
+}
+.secondary:hover{background:#e9f0f5}
+.ghost{
+  background:#fff;
+  border:1px solid #cbd8e3;
+  color:#5d7284
+}
+.ghost:hover{background:#f5f8fa}
+.goodbtn{background:#2d9b63;color:#fff}
+.danger{background:#fff3f3;border-color:#e5b6b6;color:#a84c4c}
+.modeSwitch{
+  background:#eef4f8;
+  border:1px solid #d4e0e9
+}
+.modeChoice{color:#6d8192}
+.modeChoice.active{
+  background:#fff;
+  color:#0f73ad;
+  border:1px solid #b9d5e7;
+  box-shadow:0 2px 7px rgba(20,136,201,.08)!important
+}
+.notice{
+  background:#f4f9fc;
+  border:1px solid #cfe1ec;
+  color:#4f687a
+}
+.status{
+  background:#f7fafc;
+  border:1px solid #d9e3ea;
+  color:#697d8d
+}
+.status.ok{
+  background:#f1fbf6;border-color:#bfe1cf;color:#2a8055
+}
+.status.warn{
+  background:#fff9ee;border-color:#ead8a9;color:#9a7422
+}
+.status.err{
+  background:#fff3f3;border-color:#e6c1c1;color:#aa5454
+}
+.summary{gap:12px}
+.metric{
+  background:#f9fbfc;
+  border:1px solid #d9e3ea
+}
+.metric b{color:#173247}
+.metric span{color:#7890a1}
+.group h3{color:#6f8597}
+.code{
+  background:#fff;
+  border:1px solid #cbd8e3;
+  color:#21445d
+}
+.code:hover{border-color:#9ec8df}
+.code.start{
+  background:#eef9f3;
+  border-color:#79bd98;
+  color:#25724d
+}
+table{
+  background:#fff;
+  border:1px solid #d6e1e9
+}
+thead{background:#edf5fa}
+th{color:#597386}
+th,td{border-bottom:1px solid #e5ebf0}
+tr:hover td{background:#f8fbfd}
+.canvasWrap{
+  background:#f8fbfd;
+  border:1px solid #d9e3ea
+}
+.badge,.pill{
+  background:#f5f8fa;
+  border-color:#d5e0e8;
+  color:#5e7485
+}
+.confidence.good{
+  color:#25724d!important;
+  border-color:#a8d3bb!important;
+  background:#eef9f3!important
+}
+.confidence.edge{
+  color:#916d1e!important;
+  border-color:#e0ca92!important;
+  background:#fff9ee!important
+}
+.resultCard,.engineer{
+  background:#fff;
+  border:1px solid #d9e3ea
+}
+.callout{background:#eef9f3}
+.filebox{
+  background:#f8fbfd;
+  border-color:#b9cedd
+}
+.progress{background:#e6eef4;border-color:#d3dfe7}
+.bar{background:#1488c9}
+a{color:#0f73ad}
+@media(max-width:720px){
+  body{background:#eef4f8}
+  .wrap{padding:0 11px 40px}
+  .appHeader{margin:0 -11px 16px;padding:16px 12px}
+  .brandMark{width:54px;height:54px}
+  .title{font-size:28px}
+  .headerStatus{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.24)}
+  .tabs{position:sticky;top:0;background:#fff;z-index:20}
+  .card{box-shadow:0 5px 16px rgba(25,67,95,.08)}
+}
+
 </style>
 </head>
 <body>
@@ -310,7 +510,7 @@ tr:hover td{background:#131f2b}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v9</span></div>
+        <div class="title">Coverage Planner <span class="version">v10</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
