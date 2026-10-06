@@ -160,14 +160,166 @@ tr:last-child td{border-bottom:none}
   .codes{gap:7px}.code{padding:8px 10px}
 }
 
+
+/* v9 professional UI — presentation only */
+:root{
+  --bg:#0d141d;--panel:#131d28;--panel2:#0f1822;--line:#263444;
+  --text:#f4f7fb;--muted:#8e9bad;--accent:#2f7fd3;--accent2:#4c93df;
+  --good:#49b779;--warn:#d9a93d;--bad:#d96868;--shadow:0 8px 24px rgba(0,0,0,.18)
+}
+body{
+  background:#0d141d;
+  color:var(--text);
+}
+.wrap{max-width:1180px;padding:28px 20px 72px}
+.appHeader{
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  padding:8px 2px 24px;border-bottom:1px solid #22303e;margin-bottom:18px
+}
+.headerIdentity{display:flex;align-items:center;gap:16px}
+.brandMark{
+  width:48px;height:48px;border-radius:10px;display:grid;place-items:center;
+  background:#2f7fd3;color:#fff;font-size:24px;font-weight:800;letter-spacing:-.04em;
+  box-shadow:none
+}
+.brand{font-size:10px;font-weight:800;letter-spacing:.16em;color:#7f91a6}
+.title{font-size:32px;line-height:1.1;letter-spacing:-.025em;margin:4px 0 4px;font-weight:750}
+.version{
+  font-size:10px;font-weight:700;letter-spacing:.06em;margin-left:6px;padding:3px 6px;
+  border-radius:5px;background:#172535;border:1px solid #2c4258;color:#9cb3cc
+}
+.sub{font-size:13px;color:#8593a4;margin:0}
+.headerStatus{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #273543;
+  background:#101923;border-radius:10px;min-width:250px
+}
+.headerStatus b{display:block;font-size:12px;font-weight:700;color:#dce5ef}
+.statusDot{width:8px;height:8px;border-radius:50%;background:#49b779;box-shadow:0 0 0 3px rgba(73,183,121,.11)}
+.headerStatus #installApp{margin-left:auto;padding:8px 10px;min-height:auto}
+.card{
+  background:#131d28;border:1px solid #233140;border-radius:12px;
+  box-shadow:var(--shadow);padding:20px
+}
+.card.compact{padding:13px 15px}
+.mobileInstall{position:static!important;backdrop-filter:none!important}
+.tabs{
+  width:100%;padding:0;background:transparent;border:0;border-bottom:1px solid #24313f;
+  border-radius:0;gap:24px;margin:0 0 18px
+}
+.tab{
+  position:relative;background:transparent!important;border:0!important;border-radius:0!important;
+  color:#8897a8;padding:14px 2px 13px;font-size:14px;font-weight:700;box-shadow:none!important
+}
+.tab.active{color:#f4f7fb!important}
+.tab.active:after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#3d88d8;border-radius:2px
+}
+.tab:hover{background:transparent!important;color:#c7d2df}
+.eyebrow{
+  color:#6f9dce;font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.13em;margin-bottom:5px
+}
+.sectionTitle{font-size:20px;font-weight:720;letter-spacing:-.015em;color:#f4f7fb}
+.small{font-size:12px;color:#8492a3}
+label{font-size:12px;font-weight:650;color:#a6b2bf}
+input,select{
+  background:#0f1822;border:1px solid #2a3949;border-radius:8px;color:#f4f7fb;
+  min-height:44px
+}
+input:focus,select:focus{border-color:#3e82c9;box-shadow:0 0 0 3px rgba(62,130,201,.10)}
+button{border-radius:8px;font-weight:700;box-shadow:none!important}
+button:not(.tab):not(.ghost):not(.secondary):not(.danger):not(.goodbtn){
+  background:#347fc9;color:#fff
+}
+button:not(.tab):not(.ghost):not(.secondary):not(.danger):not(.goodbtn):hover{background:#3d88d3}
+.secondary{background:#172331;border-color:#2c3a48;color:#dce5ef}
+.secondary:hover{background:#1c2a39}
+.ghost{background:transparent;border-color:#2a3948;color:#9ba9b8}
+.goodbtn{background:#317d58;color:#fff}
+.danger{background:#2d1d21;border-color:#5b3137;color:#efb4b4}
+.modeSwitch{
+  padding:3px;background:#0e1721;border:1px solid #253545;border-radius:9px;gap:3px
+}
+.modeChoice{
+  border:0;background:transparent;border-radius:6px;color:#8f9cad;font-size:13px;padding:10px 12px
+}
+.modeChoice.active{
+  background:#1a2a3b;color:#edf4fb;box-shadow:none!important;border:1px solid #31506f
+}
+.notice{
+  border-left:0;border:1px solid #2a3b4d;background:#101a25;border-radius:8px;color:#9eacbc
+}
+.status{
+  border:1px solid #293847;background:#101923;border-radius:8px;color:#8f9dac
+}
+.status.ok{border-color:#315a46;color:#82c99e;background:#101d18}
+.status.warn{border-color:#66562e;color:#e1bd68;background:#201b10}
+.status.err{border-color:#65383b;color:#e6a0a2;background:#211416}
+.summary{gap:10px}
+.metric{
+  background:#101923;border:1px solid #263646;border-radius:9px;padding:14px
+}
+.metric b{font-size:25px;font-weight:720}
+.metric span{text-transform:uppercase;letter-spacing:.05em;font-size:9px;color:#758496}
+.group{margin:18px 0}
+.group h3{font-size:10px;color:#718195;letter-spacing:.1em}
+.codes{gap:6px}
+.code{
+  background:#101923;border:1px solid #2b3a49;border-radius:6px;padding:7px 9px;
+  font-size:13px;font-weight:700;box-shadow:none
+}
+.code.start{background:#132219;border-color:#3e7756;box-shadow:none}
+table{
+  background:#101923;border:1px solid #263646;border-radius:9px;overflow:hidden
+}
+thead{background:#111c28}
+th{font-size:10px;color:#7f8d9f;letter-spacing:.06em}
+th,td{padding:11px 12px}
+tr:hover td{background:#131f2b}
+.canvasWrap{background:#0c141d;border:1px solid #263646;border-radius:9px;padding:10px}
+.badge,.pill{background:#101923;border-color:#2c3b4a;border-radius:6px}
+.confidence{border-radius:5px!important;font-size:9px!important;letter-spacing:.06em}
+.resultCard,.engineer{
+  background:#101923;border:1px solid #273747;border-radius:9px
+}
+.callout{border-left:3px solid #49b779;background:#101d18;border-radius:6px}
+.toolbar{margin:14px 0}
+.dataMini{min-height:34px}
+.filebox{background:#101923;border-color:#33485e;border-radius:9px}
+@media(max-width:720px){
+  .wrap{padding:16px 11px 40px}
+  .appHeader{align-items:flex-start;flex-direction:column;gap:13px;padding-bottom:16px}
+  .headerIdentity{align-items:flex-start}
+  .brandMark{width:42px;height:42px;font-size:21px;border-radius:8px}
+  .title{font-size:27px}
+  .headerStatus{width:100%;min-width:0}
+  .tabs{position:sticky;top:0;z-index:20;background:#0d141d;gap:0}
+  .tab{flex:1;text-align:center;padding:13px 5px}
+  .card{border-radius:10px;padding:16px;box-shadow:0 5px 18px rgba(0,0,0,.15)}
+  .summary{grid-template-columns:1fr 1fr}
+  .metric{padding:12px}
+  .modeChoice{font-size:12px}
+}
+
 </style>
 </head>
 <body>
 <div class="wrap">
-<div class="brand">ABLE GROUP · COVERAGE TOOLS</div>
-<div class="title">Coverage Planner <span class="version">v8</span></div>
-<div class="sub">Fast postcode coverage checks for the office and on the move.</div>
-<div class="card compact mobileInstall"><div class="row between"><div><b>App status</b><div id="onlineState" class="small">Checking connection…</div></div><button id="installApp" class="secondary hidden">Install to phone</button></div></div>
+<header class="appHeader">
+    <div class="headerIdentity">
+      <div class="brandMark" aria-hidden="true">A</div>
+      <div>
+        <div class="brand">ABLE GROUP · OPERATIONS</div>
+        <div class="title">Coverage Planner <span class="version">v9</span></div>
+        <div class="sub">Postcode coverage and driving-distance checks.</div>
+      </div>
+    </div>
+    <div class="headerStatus">
+      <span class="statusDot"></span>
+      <div><b>Service status</b><div id="onlineState" class="small">Checking connection…</div></div>
+      <button id="installApp" class="secondary hidden">Install app</button>
+    </div>
+  </header>
 
 <div class="card compact">
   <div class="dataMini">
@@ -194,7 +346,7 @@ tr:last-child td{border-bottom:none}
 
 <section id="coveragePanel" class="modePanel active">
 <div class="card">
-  <div class="sectionTitle">Find outward codes in a radius</div><div class="small" style="margin-bottom:10px">Choose whether the mileage means a straight-line geographic radius or approximate road mileage.</div>
+  <div class="eyebrow">Coverage search</div><div class="sectionTitle">Find outward codes in a radius</div><div class="small" style="margin-bottom:10px">Choose whether the mileage means a straight-line geographic radius or approximate road mileage.</div>
   <div class="modeSwitch" style="max-width:520px;margin-bottom:14px"><div id="coverageStraight" class="modeChoice active">Straight-line radius</div><div id="coverageDriving" class="modeChoice">Driving distance</div></div>
   <div class="grid">
     <div><label>Starting full postcode</label><input id="postcode" placeholder="e.g. SS2 5TE" autocomplete="postal-code"></div>
@@ -216,7 +368,7 @@ tr:last-child td{border-bottom:none}
 <section id="jobsPanel" class="modePanel">
 <div class="two">
   <div class="card">
-    <div class="sectionTitle">Saved engineers / service areas</div>
+    <div class="eyebrow">Service areas</div><div class="sectionTitle">Saved engineers / service areas</div>
     <div class="small">Give each person or team a base postcode and their normal coverage radius.</div>
     <div style="margin-top:14px"><label>Name</label><input id="engName" placeholder="e.g. Steve / Plumbing Team A"></div>
     <div class="two" style="margin-top:10px"><div><label>Base postcode</label><input id="engPostcode" placeholder="e.g. SS2 5TE"></div><div><label>Coverage radius</label><select id="engRadius"><option>10</option><option>15</option><option selected>20</option><option>25</option><option>30</option><option>40</option><option>50</option><option>75</option><option>100</option></select></div></div>
@@ -224,7 +376,7 @@ tr:last-child td{border-bottom:none}
     <div id="engineerStatus" class="status">Load postcode data to add service areas.</div>
   </div>
   <div class="card">
-    <div class="sectionTitle">Check a job</div>
+    <div class="eyebrow">Job lookup</div><div class="sectionTitle">Check a job</div>
     <div class="small">Enter the job postcode, then choose whether coverage should be judged by straight-line radius or actual driving distance.</div>
     <div class="modeSwitch">
       <div id="modeStraight" class="modeChoice active">Straight-line<br><span class="small">fast · offline</span></div>
