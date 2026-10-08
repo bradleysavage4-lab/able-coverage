@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v16.1</title>
+<title>Able Coverage Planner v16.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -770,6 +770,19 @@ body{background:#eef3f7}
 /* v16.1 anchored-map safeguard */
 .mapFallbackBanner{max-width:520px;line-height:1.4}
 
+
+/* v16.2 map alignment fix */
+.leaflet-container canvas{
+  width:auto!important;
+  height:auto!important;
+  max-height:none!important;
+}
+.leaflet-container svg{
+  width:auto;
+  height:auto;
+  max-height:none;
+}
+
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -782,7 +795,7 @@ body{background:#eef3f7}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v16.1</span></div>
+        <div class="title">Coverage Planner <span class="version">v16.2</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -1280,7 +1293,7 @@ function renderCoverageLeaflet(lat,lon,rm,start,miles){
   try{
     if(coverageLeafletMap)coverageLeafletMap.remove();
     $('plotMap').innerHTML='';
-    let map=coverageLeafletMap=L.map('plotMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
+    let map=coverageLeafletMap=L.map('plotMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:false,renderer:L.svg()});
     map.setView([lat,lon],zoom);
     attachReliableTiles(map,fallbackCoverage);
     let radiusLayer=L.layerGroup().addTo(map),pointsLayer=L.layerGroup().addTo(map);
@@ -1305,7 +1318,7 @@ function renderJobLeaflet(lat,lon,checked,pc,farthest){
   try{
     if(jobLeafletMap)jobLeafletMap.remove();
     $('jobMap').innerHTML='';
-    let map=jobLeafletMap=L.map('jobMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:true});
+    let map=jobLeafletMap=L.map('jobMap',{zoomControl:true,scrollWheelZoom:true,preferCanvas:false,renderer:L.svg()});
     map.setView([lat,lon],zoom);
     attachReliableTiles(map,fallbackJob);
     let engineerLayer=L.layerGroup().addTo(map),radiusLayer=L.layerGroup();
