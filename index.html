@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Able Coverage Planner v16</title>
+<title>Able Coverage Planner v16.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0b0f14">
 <meta name="mobile-web-app-capable" content="yes">
@@ -766,6 +766,10 @@ body{background:#eef3f7}
   .managerForm{grid-template-columns:1fr}
 }
 
+
+/* v16.1 anchored-map safeguard */
+.mapFallbackBanner{max-width:520px;line-height:1.4}
+
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -778,7 +782,7 @@ body{background:#eef3f7}
       <div class="brandMark"><img src="able-logo.svg" alt="Able Group"></div>
       <div>
         <div class="brand">ABLE GROUP · INTERNAL OPERATIONS</div>
-        <div class="title">Coverage Planner <span class="version">v16</span></div>
+        <div class="title">Coverage Planner <span class="version">v16.1</span></div>
         <div class="sub">Postcode coverage and driving-distance checks.</div>
       </div>
     </div>
@@ -1178,10 +1182,9 @@ function osmFallbackHtml(lat,lon,zoom,badge,kind='coverage'){
   let bbox=encodeURIComponent(left+','+bottom+','+right+','+top);
   let marker=encodeURIComponent(lat+','+lon);
   let src='https://www.openstreetmap.org/export/embed.html?bbox='+bbox+'&layer=mapnik&marker='+marker;
-  return '<div class="mapFallbackBanner">Interactive tiles were unavailable, so the OpenStreetMap fallback is being shown.</div>'+
-    '<div class="mapBadge" style="top:50px"><b>'+badge+'</b></div>'+
-    '<iframe title="OpenStreetMap fallback" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="'+src+'"></iframe>'+
-    '<div id="'+(kind==='job'?'jobOverlay':'coverageOverlay')+'" class="'+(kind==='job'?'jobOverlay':'mapOverlay')+'"></div>';
+  return '<div class="mapFallbackBanner">Interactive map layers could not load. This fallback shows the map and search centre only; postcode/engineer overlays are hidden rather than shown inaccurately.</div>'+
+    '<div class="mapBadge" style="top:58px"><b>'+badge+'</b></div>'+
+    '<iframe title="OpenStreetMap fallback" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="pointer-events:auto" src="'+src+'"></iframe>';
 }
 function mercatorWorld(lat,lon,zoom){
   let scale=256*Math.pow(2,zoom),x=(lon+180)/360*scale;
@@ -1260,7 +1263,7 @@ function fallbackCoverage(){
   try{if(coverageLeafletMap)coverageLeafletMap.remove()}catch(e){}
   coverageLeafletMap=null;
   $('plotMap').innerHTML=osmFallbackHtml(s.lat,s.lon,s.zoom,s.start+' · '+s.miles.toFixed(0)+' mile search','coverage');
-  setTimeout(()=>drawCoverageOverlay(s.lat,s.lon,s.zoom,s.miles),500);
+  if($('plotNote'))$('plotNote').innerHTML='<b>Fallback map:</b> postcode markers are intentionally hidden because only true map-anchored markers are shown. The results table remains authoritative.';
 }
 function fallbackJob(){
   if(!jobMapState)return;
@@ -1268,7 +1271,7 @@ function fallbackJob(){
   try{if(jobLeafletMap)jobLeafletMap.remove()}catch(e){}
   jobLeafletMap=null;
   $('jobMap').innerHTML=osmFallbackHtml(s.lat,s.lon,s.zoom,displayPC(s.pc),'job');
-  setTimeout(()=>drawJobOverlay(s.lat,s.lon,s.zoom,s.checked),500);
+  if($('jobMapNote'))$('jobMapNote').innerHTML='<b>Fallback map:</b> engineer markers are intentionally hidden because only true map-anchored markers are shown. Use the ranked engineer results for the authoritative coverage result.';
 }
 function renderCoverageLeaflet(lat,lon,rm,start,miles){
   let zoom=mapZoomForMiles(miles);
@@ -1323,10 +1326,10 @@ function renderJobLeaflet(lat,lon,checked,pc,farthest){
   }catch(e){console.warn('Interactive job map failed',e);fallbackJob()}
 }
 function coverageMapZoom(delta){
-  if(coverageLeafletMap){coverageLeafletMap.zoomIn(delta);return}
-  if(!coverageMapState)return;
-  coverageMapState.zoom=Math.max(5,Math.min(15,coverageMapState.zoom+delta));
-  fallbackCoverage();
+  if(coverageLeafletMap){
+    if(delta>0)coverageLeafletMap.zoomIn(Math.abs(delta));
+    else coverageLeafletMap.zoomOut(Math.abs(delta));
+  }
 }
 window.coverageMapZoom=coverageMapZoom;
 function renderPlot(ce,cn,rm,start){
@@ -1350,7 +1353,7 @@ function renderPlot(ce,cn,rm,start){
       $('validationBadge').textContent='EXACT SCAN';
     }
   }
-  $('plotNote').innerHTML='<b>Interactive geographic view:</b> pan and zoom normally. Blue shading is the selected mileage radius; green/amber markers are the postcode points that qualified each outward code. The map is a geographic reference — the results table remains the authoritative calculation.';
+  $('plotNote').innerHTML='<b>Interactive geographic view:</b> postcode markers are attached directly to their latitude/longitude, so they remain geographically fixed when you pan or zoom. Blue shading is the selected mileage radius; green/amber markers are the points that qualified each outward code. The results table remains the authoritative calculation.';
 }
 function renderJobPlot(je,jn,checked,pc){
   let ll=enToWgs84(je,jn);
